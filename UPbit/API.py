@@ -1,12 +1,9 @@
-import time
 import requests
 import jwt
 import uuid
 import hashlib
 from urllib.parse import urlencode
 import pandas as pd
-
-import pyupbit
 
 class UPbitObject:    # 클래스
     def __init__(self, server_url, print_err=True):

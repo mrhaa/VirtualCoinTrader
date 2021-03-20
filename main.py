@@ -1,5 +1,7 @@
 import time
+from timeit import default_timer as timer
 from UPbit import API
+import Calculator
 
 PRINT_BALANCE_STATUS_LOG = True
 PRINT_TRADABLE_COINS_LOG = True
@@ -18,6 +20,8 @@ if __name__ == '__main__':
     upbit = API.UPbitObject(server_url=server_url, print_err=ERR_LOG)
 
     (access_key, secret_key) = upbit.set_key()
+
+    sb = Calculator.SendBox()
 
     if CHECK_BALANCE_INFO:
 
@@ -38,6 +42,8 @@ if __name__ == '__main__':
 
         # series 정보에서 인덱스로 사용할 컬럼명
         series_idx_nm = 'candle_date_time_kst'
+        short_term = 5
+        long_term = 20
         short_term_momentum_threshold = 1.05
         long_term_momentum_threshold = 1.02
         volume_momentum_threshold = 1.05
@@ -47,9 +53,13 @@ if __name__ == '__main__':
 
         loop_cnt = 0
         while loop_cnt < LOOP_MAX_NUM:
+
+            start_tm = timer()
+
             balances = upbit.get_balance_info()
             balances.rename(columns={'avg_buy_price': 'avg_price'}, inplace=True)
             balances.set_index(balance_idx_nm, inplace=True)
+            sb.set_balances(balances)
             if PRINT_BALANCE_STATUS_LOG and loop_cnt % 100 == 0:
                 print("--------------------- My Balance Status: %s ---------------------"%(loop_cnt))
                 for idx, row in enumerate(balances.iterrows()):
@@ -61,7 +71,7 @@ if __name__ == '__main__':
                 coins = coins.loc[[True if currency in market else False for market in coins[coins_idx_nm]]]
                 coins.rename(columns={'korean_name': 'kr_nm', 'english_name': 'us_nm'}, inplace=True)
                 coins.set_index(coins_idx_nm, inplace=True)
-
+                sb.set_coins(coins)
                 if PRINT_TRADABLE_COINS_LOG and loop_cnt % 1000 == 0:
                     print("--------------------- Tradable Coins: %s ---------------------" % (loop_cnt))
                     for idx, row in enumerate(coins.iterrows()):
@@ -77,7 +87,7 @@ if __name__ == '__main__':
                         series.rename(columns={'opening_price': 'open', 'high_price': 'high', 'low_price': 'low', 'trade_price': 'close', 'candle_acc_trade_volume': 'volume'}, inplace=True)
                         series.set_index(series_idx_nm, inplace=True)
                         series = series.sort_index()
-
+                        sb.set_series(series)
                         if TIME_SERIES_DATAS_LOG:
                             print(series)
                             for row in series.iterrows():
@@ -85,20 +95,11 @@ if __name__ == '__main__':
                                 datas = row[1]
                                 print(tm, datas)
 
-                        price = series.tail(1)['close'].values[0]
-                        price5 = series.tail(5)['close'].mean()
-                        price20 = series.tail(20)['close'].mean()
-
-                        volume = series.tail(1)['volume'].values[0]
-                        volume5 = series.tail(5)['volume'].mean()
-                        volume20 = series.tail(20)['volume'].mean()
-
-                        if price > price5*short_term_momentum_threshold and price5 > price20*long_term_momentum_threshold\
-                                and volume5 > volume20*volume_momentum_threshold:
-                            print("Market:" + market + ", Price: " + str(price)
-                                  + ", Short Momentum:" + str(round(price/price5, 4))
-                                  + ", Long Momentum:" + str(round(price5/price20, 4))
-                                  + ", Volume Momentum:" + str(round(volume5/volume20, 4)))
+                        # 골든 크로스 BUY 시그널 계산
+                        sb.get_goldend_cross_buy_signal(market, short_term=short_term, long_term=long_term
+                                                        , short_term_momentum_threshold=short_term_momentum_threshold
+                                                        , long_term_momentum_threshold=long_term_momentum_threshold
+                                                        , volume_momentum_threshold=volume_momentum_threshold)
 
                     except Exception as x:
                         if ERR_LOG:
@@ -125,5 +126,7 @@ if __name__ == '__main__':
                     message: 알수 없는 오류
                     """
 
+            end_tm = timer()
             # 1 Cycle Finished
             loop_cnt += 1
+            print("Finished %s Loop: %s seconds elapsed"%(loop_cnt, round(end_tm-start_tm, 2)))
