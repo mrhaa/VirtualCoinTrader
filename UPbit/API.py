@@ -1,3 +1,4 @@
+import time
 import requests
 import jwt
 import uuid
@@ -102,13 +103,21 @@ class UPbitObject:    # 클래스
     def look_up_all_coins(self):
         querystring = {"isDetails": "false"}
 
-        try:
-            return pd.DataFrame(requests.request("GET", self.server_url + "/v1/market/all", params=querystring).json())
+        ret = None
+        for i in range(10):
+            try:
+                ret = pd.DataFrame(requests.request("GET", self.server_url + "/v1/market/all", params=querystring).json())
+                break
 
-        except Exception as x:
-            if self.PRINT_ERR:
-                print(self.look_up_all_coins.__name__, x.__class__.__name__)
+            except Exception as x:
+                if self.PRINT_ERR:
+                    print(self.look_up_all_coins.__name__, x.__class__.__name__)
 
+                time.sleep(0.1)
+
+        if ret is not None:
+            return ret
+        else:
             return False
 
     def get_candles(self, market, interval_unit='minutes', interval_val='1', count=200):
@@ -117,13 +126,21 @@ class UPbitObject:    # 클래스
         querystring['market'] = market
         querystring['count'] = count
 
-        try:
-            return pd.DataFrame(requests.request("GET", self.server_url + "/v1/candles/%s/%s" % (interval_unit, interval_val), params=querystring).json())
+        ret = None
+        for i in range(10):
+            try:
+                ret = pd.DataFrame(requests.request("GET", self.server_url + "/v1/candles/%s/%s" % (interval_unit, interval_val), params=querystring).json())
+                break
 
-        except Exception as x:
-            if self.PRINT_ERR:
-                print(self.get_candles.__name__, market, x.__class__.__name__)
+            except Exception as x:
+                if self.PRINT_ERR:
+                    print(i, self.get_candles.__name__, market, x.__class__.__name__)
 
+                time.sleep(0.1)
+
+        if ret is not None:
+            return ret
+        else:
             return False
 
         """

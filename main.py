@@ -45,8 +45,8 @@ if __name__ == '__main__':
         count = 50 # 최대 200개
         call_term = 0.05
         call_err_score = 0.0
-        call_err_pos_score_threshold = 100.0
-        call_err_neg_score_threshold = -100.0
+        call_err_pos_score_threshold = 10
+        call_err_neg_score_threshold = -10
 
         # series 정보에서 인덱스로 사용할 컬럼명
         series_idx_nm = 'candle_date_time_kst'
@@ -59,7 +59,7 @@ if __name__ == '__main__':
         # 매매 시 사용 정보
         position_idx_nm = 'balance'
         buy_amount_unit = 10000
-        sell_balance = 0
+        target_profit = 1.05
 
         loop_cnt = 0
         while loop_cnt < LOOP_MAX_NUM:
@@ -67,6 +67,8 @@ if __name__ == '__main__':
             start_tm = timer()
 
             balances = upbit.get_balance_info()
+            if balances is False:
+                continue
             balances[balances_idx_nm] = balances[[balances_idx_nm1, balances_idx_nm2]].apply('-'.join, axis=1)
             balances.rename(columns={'avg_buy_price': 'avg_price'}, inplace=True)
             balances.set_index(balances_idx_nm, inplace=True)
@@ -90,14 +92,14 @@ if __name__ == '__main__':
                     print("-------------------------------------------------------------")
 
                 for market in coins.index:
-
                     try:
                         series = upbit.get_candles(market=market, interval_unit=interval_unit, interval_val=interval_val, count=count)
                         if series is False:
                             # 너무 자주 call error 발생 시 주기 확대
                             call_err_score = call_err_score - 1.0
                             if call_err_score < call_err_neg_score_threshold:
-                                call_term = call_term * 1.1
+                                # 최대 0.1초까지 증가 시킬 수 있음
+                                call_term = min(call_term * 1.1, 0.1)
                                 call_err_score = 0
                                 print("API call term extended to %s"%(round(call_term, 4)))
                             continue
@@ -145,7 +147,11 @@ if __name__ == '__main__':
                             if EMPTY_ALL_POSITION:
                                 signal = -100
                             else:
-                                signal = sb.get_dead_cross_sell_signal(short_term=short_term, long_term=long_term)
+                                # 목표한 수익률 달성 시 매도
+                                if sb.series.tail(1)['close'][0]/float(sb.balances['avg_price'][market]) > target_profit:
+                                    signal = -100
+                                else:
+                                    signal = sb.get_dead_cross_sell_signal(short_term=short_term, long_term=long_term)
                             sell_balance = sb.balances[position_idx_nm][market]
 
                         if TRADE_COIN:
