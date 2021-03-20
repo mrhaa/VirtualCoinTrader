@@ -1,96 +1,129 @@
-import requests
-import pyupbit
 import time
-import pprint
+from UPbit import API
 
+PRINT_BALANCE_STATUS_LOG = True
+PRINT_TRADABLE_COINS_LOG = True
+TIME_SERIES_DATAS_LOG = False
+ERR_LOG = True
 
-def test_order():
-    f = open("upbit.txt")
-    lines = f.readlines()
-    access = lines[0].strip()
-    secret = lines[1].strip()
-    f.close()
+CHECK_BALANCE_INFO = True
+ANALYZE_DATA = True
+TRADE_COIN = False
 
-    # print(access)
-    # print(secret)
-
-    if 0:
-        upbit = pyupbit.Upbit(access, secret)
-        balances = upbit.get_balances()
-        print(balances)
-        #pprint.pprint(balances[0])
-    else:
-        import os
-        import jwt
-        import uuid
-        import hashlib
-        from urllib.parse import urlencode
-
-        import requests
-
-        access_key = access #os.environ['UPBIT_OPEN_API_ACCESS_KEY']
-        secret_key = secret #os.environ['UPBIT_OPEN_API_SECRET_KEY']
-        server_url = "https://api.upbit.com" # os.environ['UPBIT_OPEN_API_SERVER_URL']
-
-        payload = {
-            'access_key': access_key,
-            'nonce': str(uuid.uuid4()),
-        }
-
-        jwt_token = jwt.encode(payload, secret_key)
-        authorize_token = 'Bearer {}'.format(jwt_token)
-        headers = {"Authorization": authorize_token}
-
-        res = requests.get(server_url + "/v1/accounts", headers=headers)
-
-        print(res.json())
-
-def read_tick():
-    print("Start")
-
-    url = "https://api.upbit.com/v1/market/all"
-    params = {
-        "isDetails": "false"
-    }
-
-    resp = requests.get(url, params=params)
-    datas = resp.json()
-
-    tickers = pyupbit.get_tickers(fiat="KRW")
-    # tickers = ['KRW-BTC', 'KRW-DOGE']
-
-    a = 0
-    while True:
-        a = a + 1
-        print(a)
-        for ticker in tickers:
-            # price = pyupbit.get_current_price(ticker)
-            df_prc = pyupbit.get_ohlcv(ticker, "minute1", "10")
-            df_vol = pyupbit.get_ohlcv(ticker, "minute1", "10")
-
-            price = df_prc.tail(1)['close'].values[0]
-            MA05prc = df_prc.tail(5)['close'].mean()
-            MA20prc = df_prc['close'].mean()
-
-            volume = df_vol.tail(1)['volume'].values[0]
-            MA05vol = df_vol.tail(5)['volume'].sum()
-            MA20vol = df_vol['volume'].sum()
-
-            if price > MA05prc * 1.002 and MA05prc > MA20prc * 1.005:  # and volume*5 > MA05vol and MA05vol*4 > MA20vol:
-                for data in datas:
-                    if data['market'] == ticker:
-                        print(data['korean_name'], end=" ")
-                # print(ticker, end=" ")
-                print("MTM=", price, end=" ")
-                print("5MAprc=", round(price / MA05prc, 4), end=" ")
-                print("20MAprc=", round(price / MA20prc, 4), end=" ")
-                print("Vol=", volume, end=" ")
-                print("5MAvol=", round(volume * 5 / MA05vol, 4), end=" ")
-                print("20MAvol=", round(volume * 20 / MA20vol, 4))
-
-            time.sleep(0.14)
-
+LOOP_MAX_NUM = float('inf')
 
 if __name__ == '__main__':
 
-    test_order()
+    server_url = "https://api.upbit.com"
+    upbit = API.UPbitObject(server_url=server_url, print_err=ERR_LOG)
+
+    (access_key, secret_key) = upbit.set_key()
+
+    if CHECK_BALANCE_INFO:
+
+        # 기준 통화(매수에 사용)
+        currency = 'KRW'
+
+        # balance 정보에서 인덱스로 사용할 컬럼명
+        balance_idx_nm = 'currency'
+
+        # 거래 가능한 coin 정보에서 인덱스로 사용할 컬럼명
+        coins_idx_nm = 'market'
+
+        # 시계열 정보를 받는 기준
+        interval_unit = 'minutes'
+        interval_val = '1'
+        count = 50 # 최대 200개
+        call_term = 0.05
+
+        # series 정보에서 인덱스로 사용할 컬럼명
+        series_idx_nm = 'candle_date_time_kst'
+        short_term_momentum_threshold = 1.05
+        long_term_momentum_threshold = 1.02
+        volume_momentum_threshold = 1.05
+
+        # 매매 시 사용 정보
+        buy_amount_unit = 50000
+
+        loop_cnt = 0
+        while loop_cnt < LOOP_MAX_NUM:
+            balances = upbit.get_balance_info()
+            balances.rename(columns={'avg_buy_price': 'avg_price'}, inplace=True)
+            balances.set_index(balance_idx_nm, inplace=True)
+            if PRINT_BALANCE_STATUS_LOG and loop_cnt % 100 == 0:
+                print("--------------------- My Balance Status: %s ---------------------"%(loop_cnt))
+                for idx, row in enumerate(balances.iterrows()):
+                    print(str(idx) + " " + row[0] + ", balacne: "+ row[1]['balance'] + ", avg_price: " + row[1]['avg_price'])
+                print("----------------------------------------------------------------")
+
+            if ANALYZE_DATA:
+                coins = upbit.look_up_all_coins()
+                coins = coins.loc[[True if currency in market else False for market in coins[coins_idx_nm]]]
+                coins.rename(columns={'korean_name': 'kr_nm', 'english_name': 'us_nm'}, inplace=True)
+                coins.set_index(coins_idx_nm, inplace=True)
+
+                if PRINT_TRADABLE_COINS_LOG and loop_cnt % 1000 == 0:
+                    print("--------------------- Tradable Coins: %s ---------------------" % (loop_cnt))
+                    for idx, row in enumerate(coins.iterrows()):
+                        print(str(idx) + " " + row[0] + ", name: " + row[1]['kr_nm'])
+                    print("-------------------------------------------------------------")
+
+                for market in coins.index:
+                    try:
+                        series = upbit.get_candles(market=market, interval_unit=interval_unit, interval_val=interval_val, count=count)
+                        if series is False:
+                            continue
+                        #series[series_idx_nm].apply(lambda x: datetime.datetime.strptime(x, "%Y-%m-%dT%H:%M:%S"))
+                        series.rename(columns={'opening_price': 'open', 'high_price': 'high', 'low_price': 'low', 'trade_price': 'close', 'candle_acc_trade_volume': 'volume'}, inplace=True)
+                        series.set_index(series_idx_nm, inplace=True)
+                        series = series.sort_index()
+
+                        if TIME_SERIES_DATAS_LOG:
+                            print(series)
+                            for row in series.iterrows():
+                                tm = row[0]
+                                datas = row[1]
+                                print(tm, datas)
+
+                        price = series.tail(1)['close'].values[0]
+                        price5 = series.tail(5)['close'].mean()
+                        price20 = series.tail(20)['close'].mean()
+
+                        volume = series.tail(1)['volume'].values[0]
+                        volume5 = series.tail(5)['volume'].mean()
+                        volume20 = series.tail(20)['volume'].mean()
+
+                        if price > price5*short_term_momentum_threshold and price5 > price20*long_term_momentum_threshold\
+                                and volume5 > volume20*volume_momentum_threshold:
+                            print("Market:" + market + ", Price: " + str(price)
+                                  + ", Short Momentum:" + str(round(price/price5, 4))
+                                  + ", Long Momentum:" + str(round(price5/price20, 4))
+                                  + ", Volume Momentum:" + str(round(volume5/volume20, 4)))
+
+                    except Exception as x:
+                        if ERR_LOG:
+                            print(market, ": ", x.__class__.__name__)
+
+                    time.sleep(call_term)
+
+                if TRADE_COIN:
+                    # 매수 시 side='bid', price=매수금액, ord_type='price'
+                    # 매도 시 side='ask', volume=매도수량, ord_type='market'
+                    ret = upbit.order(market=market, side='bid', volume=None, price=str(buy_amount_unit), ord_type='price')
+                    print(ret)
+                    """
+                    ret_code: 201
+                    message: 주문 성공
+                    
+                    ret_code: 400
+                    message: 최소주문금액 이하 주문
+                    
+                    ret_code: 401
+                    message: 쿼리 오류
+                    
+                    ret_code: 500
+                    message: 알수 없는 오류
+                    """
+
+            # 1 Cycle Finished
+            loop_cnt += 1
