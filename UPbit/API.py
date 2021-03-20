@@ -67,11 +67,11 @@ class UPbitObject:    # 클래스
                 query['ord_type'] = ord_type
 
                 # 시장가 매수 시
-                if side == 'bid' and ord_type == 'price':
+                if side == 'bid' and ord_type == 'price' and 'volume' in query.keys():
                     del query['volume']
 
                 # 시장가 매도 시
-                if side == 'ask' and ord_type == 'market':
+                if side == 'ask' and ord_type == 'market' and 'price' in query.keys():
                     del query['price']
 
             query_string = urlencode(query).encode()
