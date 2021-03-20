@@ -1,16 +1,18 @@
+import sys
 import time
 from timeit import default_timer as timer
 from UPbit import API
 import Calculator
 
 PRINT_BALANCE_STATUS_LOG = True
-PRINT_TRADABLE_COINS_LOG = True
+PRINT_TRADABLE_COINS_LOG = False
 TIME_SERIES_DATAS_LOG = False
 ERR_LOG = False
 
 CHECK_BALANCE_INFO = True
 ANALYZE_DATA = True
-TRADE_COIN = False
+TRADE_COIN = True
+EMPTY_ALL_POSITION = False
 
 LOOP_MAX_NUM = float('inf')
 
@@ -32,7 +34,7 @@ if __name__ == '__main__':
         balances_idx_nm1 = 'unit_currency'
         balances_idx_nm2 = 'currency'
         balances_idx_nm = balances_idx_nm1+'-'+balances_idx_nm2
-        max_balances_num = 10
+        max_balances_num = 3
 
         # 거래 가능한 coin 정보에서 인덱스로 사용할 컬럼명
         coins_idx_nm = 'market'
@@ -88,8 +90,6 @@ if __name__ == '__main__':
                     print("-------------------------------------------------------------")
 
                 for market in coins.index:
-                    # 100: BUY, -100: SELL
-                    signal = False
 
                     try:
                         series = upbit.get_candles(market=market, interval_unit=interval_unit, interval_val=interval_val, count=count)
@@ -121,6 +121,10 @@ if __name__ == '__main__':
                                 datas = row[1]
                                 print(tm, datas)
 
+
+                        # 100: BUY, -100: SELL
+                        signal = False
+
                         # 현금이 최소 단위의 금액 이상 있는 경우 & 해당 코인을 보유하고 있지 않은 경우 BUY 할 수 있음
                         if market not in sb.balances_list:
                             if float(sb.balances[position_idx_nm][currency+'-'+currency]) > buy_amount_unit:
@@ -138,7 +142,10 @@ if __name__ == '__main__':
 
                         # 해당 코인을 보유하고 있는 경우 SELL 할 수 있음
                         elif market in sb.balances_list:
-                            signal = sb.get_dead_cross_sell_signal(short_term=short_term, long_term=long_term)
+                            if EMPTY_ALL_POSITION:
+                                signal = -100
+                            else:
+                                signal = sb.get_dead_cross_sell_signal(short_term=short_term, long_term=long_term)
                             sell_balance = sb.balances[position_idx_nm][market]
 
                         if TRADE_COIN:
@@ -153,6 +160,11 @@ if __name__ == '__main__':
                                 ret = upbit.order(market=market, side='ask', volume=str(sell_balance), price=None, ord_type='market')
                                 sb.update_balances(market, 'ask')
                                 print(market + " 매도 성공") if ret.status_code == 201 else False
+
+                            # 강제로 모든 포지션을 비우고 현금만 남으면 시스템 다운 시킴
+                            if EMPTY_ALL_POSITION and sb.balances_num == 1:
+                                sys.exit()
+
 
                             """
                             ret_code: 201
