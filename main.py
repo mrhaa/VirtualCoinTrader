@@ -6,11 +6,11 @@ import Calculator
 PRINT_BALANCE_STATUS_LOG = True
 PRINT_TRADABLE_COINS_LOG = True
 TIME_SERIES_DATAS_LOG = False
-ERR_LOG = True
+ERR_LOG = False
 
 CHECK_BALANCE_INFO = True
 ANALYZE_DATA = True
-TRADE_COIN = True
+TRADE_COIN = False
 
 LOOP_MAX_NUM = float('inf')
 
@@ -32,6 +32,7 @@ if __name__ == '__main__':
         balances_idx_nm1 = 'unit_currency'
         balances_idx_nm2 = 'currency'
         balances_idx_nm = balances_idx_nm1+'-'+balances_idx_nm2
+        max_balances_num = 10
 
         # 거래 가능한 coin 정보에서 인덱스로 사용할 컬럼명
         coins_idx_nm = 'market'
@@ -41,18 +42,21 @@ if __name__ == '__main__':
         interval_val = '1'
         count = 50 # 최대 200개
         call_term = 0.05
+        call_err_score = 0.0
+        call_err_pos_score_threshold = 100.0
+        call_err_neg_score_threshold = -100.0
 
         # series 정보에서 인덱스로 사용할 컬럼명
         series_idx_nm = 'candle_date_time_kst'
         short_term = 5
         long_term = 20
-        short_term_momentum_threshold = 1.05
-        long_term_momentum_threshold = 1.02
-        volume_momentum_threshold = 1.02
+        short_term_momentum_threshold = 1.005
+        long_term_momentum_threshold = 1.002
+        volume_momentum_threshold = 1.01
 
         # 매매 시 사용 정보
         position_idx_nm = 'balance'
-        buy_amount_unit = 50000
+        buy_amount_unit = 10000
         sell_balance = 0
 
         loop_cnt = 0
@@ -64,7 +68,7 @@ if __name__ == '__main__':
             balances[balances_idx_nm] = balances[[balances_idx_nm1, balances_idx_nm2]].apply('-'.join, axis=1)
             balances.rename(columns={'avg_buy_price': 'avg_price'}, inplace=True)
             balances.set_index(balances_idx_nm, inplace=True)
-            sb.set_balances(balances)
+            sb.set_balances(balances, max_balances_num)
             if PRINT_BALANCE_STATUS_LOG and loop_cnt % 100 == 0:
                 print("--------------------- My Balance Status: %s ---------------------"%(loop_cnt))
                 for idx, row in enumerate(balances.iterrows()):
@@ -90,7 +94,21 @@ if __name__ == '__main__':
                     try:
                         series = upbit.get_candles(market=market, interval_unit=interval_unit, interval_val=interval_val, count=count)
                         if series is False:
+                            # 너무 자주 call error 발생 시 주기 확대
+                            call_err_score = call_err_score - 1.0
+                            if call_err_score < call_err_neg_score_threshold:
+                                call_term = call_term * 1.1
+                                call_err_score = 0
+                                print("API call term extended to %s"%(round(call_term, 4)))
                             continue
+                        else:
+                            # call error가 자주 발생하지 않으면 주기 축소
+                            call_err_score = call_err_score + 0.1
+                            if call_err_score > call_err_pos_score_threshold:
+                                call_term = call_term * 0.9
+                                call_err_score = 0
+                                print("API call term reduced to %s" % (round(call_term, 4)))
+
                         #series[series_idx_nm].apply(lambda x: datetime.datetime.strptime(x, "%Y-%m-%dT%H:%M:%S"))
                         series.rename(columns={'opening_price': 'open', 'high_price': 'high', 'low_price': 'low', 'trade_price': 'close', 'candle_acc_trade_volume': 'volume'}, inplace=True)
                         series.set_index(series_idx_nm, inplace=True)
@@ -106,15 +124,21 @@ if __name__ == '__main__':
                         # 현금이 최소 단위의 금액 이상 있는 경우 & 해당 코인을 보유하고 있지 않은 경우 BUY 할 수 있음
                         if market not in sb.balances_list:
                             if float(sb.balances[position_idx_nm][currency+'-'+currency]) > buy_amount_unit:
+
+                                # 최대 보유 가능 종류 수량을 넘는 경우
+                                if sb.balances_num > sb.max_balances_num:
+                                    #print("현재 %s/%s 포지션 보유중으로 %s 추가 매수 불가"%(sb.balances_num, sb.max_balances_num, market))
+                                    continue
+
                                 # 골든 크로스 BUY 시그널 계산
-                                signal = sb.get_golden_cross_buy_signal(market, short_term=short_term, long_term=long_term
+                                signal = sb.get_golden_cross_buy_signal(short_term=short_term, long_term=long_term
                                                                 , short_term_momentum_threshold=short_term_momentum_threshold
                                                                 , long_term_momentum_threshold=long_term_momentum_threshold
                                                                 , volume_momentum_threshold=volume_momentum_threshold)
 
                         # 해당 코인을 보유하고 있는 경우 SELL 할 수 있음
                         elif market in sb.balances_list:
-                            signal = -100
+                            signal = sb.get_dead_cross_sell_signal(short_term=short_term, long_term=long_term)
                             sell_balance = sb.balances[position_idx_nm][market]
 
                         if TRADE_COIN:
@@ -122,10 +146,12 @@ if __name__ == '__main__':
                             # 매도 시 side='ask', volume=매도수량, ord_type='market'
                             if signal == 100:
                                 ret = upbit.order(market=market, side='bid', volume=None, price=str(buy_amount_unit), ord_type='price')
+                                sb.update_balances(market, 'bid')
                                 print(market + " 매수 성공") if ret.status_code == 201 else False
 
                             elif signal == -100:
                                 ret = upbit.order(market=market, side='ask', volume=str(sell_balance), price=None, ord_type='market')
+                                sb.update_balances(market, 'ask')
                                 print(market + " 매도 성공") if ret.status_code == 201 else False
 
                             """
