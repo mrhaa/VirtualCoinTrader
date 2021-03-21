@@ -1,3 +1,5 @@
+#_*_ coding: utf-8 _*_
+
 import time
 import requests
 import jwt
@@ -7,13 +9,13 @@ from urllib.parse import urlencode
 import pandas as pd
 
 class UPbitObject:    # 클래스
-    def __init__(self, server_url, api_print_err=True):
+    def __init__(self, server_url, API_PRINT_ERR=True):
 
         self.access_key = ""
         self.secret_key = ""
         self.server_url = server_url
 
-        self.api_print_err = api_print_err
+        self.API_PRINT_ERR = API_PRINT_ERR
 
     def set_key(self):
 
@@ -40,7 +42,7 @@ class UPbitObject:    # 클래스
             return pd.DataFrame(requests.get(self.server_url + "/v1/accounts", headers=headers).json())
 
         except Exception as x:
-            if self.api_print_err:
+            if self.API_PRINT_ERR:
                 print(self.get_balance_info.__name__, x.__class__.__name__)
 
             return False
@@ -95,7 +97,7 @@ class UPbitObject:    # 클래스
             return requests.post(self.server_url + "/v1/orders", params=query, headers=headers)
 
         except Exception as x:
-            if self.api_print_err:
+            if self.API_PRINT_ERR:
                 print(self.order.__name__, x.__class__.__name__)
 
             return False
@@ -124,7 +126,7 @@ class UPbitObject:    # 클래스
                 break
 
             except Exception as x:
-                if self.api_print_err:
+                if self.API_PRINT_ERR:
                     print(self.look_up_all_coins.__name__, x.__class__.__name__)
 
                 time.sleep(0.1)
@@ -147,7 +149,7 @@ class UPbitObject:    # 클래스
                 break
 
             except Exception as x:
-                if self.api_print_err:
+                if self.API_PRINT_ERR:
                     print(i, self.get_candles.__name__, market, x.__class__.__name__)
 
                 time.sleep(0.1)

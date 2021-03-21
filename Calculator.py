@@ -1,3 +1,5 @@
+#_*_ coding: utf-8 _*_
+
 import pandas as pd
 
 class SendBox:    # 클래스
