@@ -17,17 +17,18 @@ PROCEDURE_ERR_LOG = True # 메인 프로시저 동작 시 오류
 API_ERR_LOG = False # 비스업 API 호출 시 오류
 
 # 프로시저 작업 활성화 단계 설정(전 단계가 True인 경우 다음 단계에가 활성화될 수 있음)
-READ_BALANCES_ONLINE = False # 1. 비트업에서 계좌 정보를 읽음
-READ_MARKETS_ONLINE = False # 2. 비트업에서 거래 가능한 종목 리스트업
-READ_TIME_SERIES_ONLINE = False # 3. 비트업에서 시계열 데이터 읽음
+READ_BALANCES_ONLINE = True # 1. 비트업에서 계좌 정보를 읽음
+READ_MARKETS_ONLINE = True # 2. 비트업에서 거래 가능한 종목 리스트업
+READ_TIME_SERIES_ONLINE = True # 3. 비트업에서 시계열 데이터 읽음
 ANALYZE_DATAS = False # 4. 시그널 생성
 TRADE_COIN = False # 5.
 
 # 옵션한 기능 활성화 설정
 EMPTY_ALL_POSITION = False
 CALL_TERM_APPLY = False
+SAVE_SERIES_DATA = False
 
-TEST = True
+TEST = False
 
 LOOP_MAX_NUM = float('inf')
 
@@ -35,7 +36,7 @@ if __name__ == '__main__':
 
     ############################################################################
     server_url = "https://api.upbit.com"
-    upbit = API.UPbitObject(server_url=server_url, API_PRINT_ERR=API_ERR_LOG)
+    upbit = API.UPbitObject(server_url=server_url, SAVE_SERIES_DATA=SAVE_SERIES_DATA, API_PRINT_ERR=API_ERR_LOG)
 
     (access_key, secret_key) = upbit.set_key()
 

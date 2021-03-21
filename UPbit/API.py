@@ -1,5 +1,7 @@
 #_*_ coding: utf-8 _*_
 
+import os
+import platform
 import time
 import requests
 import jwt
@@ -7,19 +9,29 @@ import uuid
 import hashlib
 from urllib.parse import urlencode
 import pandas as pd
+import pickle
+
+base_dir = (os.path.abspath(os.path.join(os.path.dirname(__file__), '.')))
+if platform.system() == 'Windows':
+    key_dir =  '%s\\'%(base_dir)
+    learning_data_dir = '%s\\SeriesData\\' % (base_dir)
+else:
+    key_dir = '%s/'%(base_dir)
+    learning_data_dir = '%s/SeriesData/' % (base_dir)
 
 class UPbitObject:    # 클래스
-    def __init__(self, server_url, API_PRINT_ERR=True):
+    def __init__(self, server_url, SAVE_SERIES_DATA=False, API_PRINT_ERR=True):
 
         self.access_key = ""
         self.secret_key = ""
         self.server_url = server_url
 
+        self.SAVE_SERIES_DATA = SAVE_SERIES_DATA
         self.API_PRINT_ERR = API_PRINT_ERR
 
     def set_key(self):
 
-        f = open("UPbit/upbit.txt")
+        f = open("%supbit.txt"%(key_dir))
         lines = f.readlines()
         self.access_key = lines[0].strip()
         self.secret_key = lines[1].strip()
@@ -155,6 +167,9 @@ class UPbitObject:    # 클래스
                 time.sleep(0.1)
 
         if ret is not None:
+            if self.SAVE_SERIES_DATA:
+                self.save_pickle(file="%s%s_learning before.pickle"%(learning_data_dir, market), obj=ret)
+                
             return ret
         else:
             return False
@@ -166,3 +181,19 @@ class UPbitObject:    # 클래스
         ret_code: 429
         message: 너무 많은 API 요청
         """
+
+    def save_pickle(self, file='test.pickle', obj=None):
+
+        f = open(file, 'wb')
+        pickle.dump(obj, f)
+        f.close()
+
+        return True
+
+    def read_pickle(self, file='test.pickle'):
+
+        f = open(file, 'rb')
+        obj = pickle.load(f)
+        f.close()
+
+        return obj
