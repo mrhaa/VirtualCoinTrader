@@ -7,13 +7,13 @@ from urllib.parse import urlencode
 import pandas as pd
 
 class UPbitObject:    # 클래스
-    def __init__(self, server_url, print_err=True):
+    def __init__(self, server_url, api_print_err=True):
 
         self.access_key = ""
         self.secret_key = ""
         self.server_url = server_url
 
-        self.PRINT_ERR = print_err
+        self.api_print_err = api_print_err
 
     def set_key(self):
 
@@ -40,7 +40,7 @@ class UPbitObject:    # 클래스
             return pd.DataFrame(requests.get(self.server_url + "/v1/accounts", headers=headers).json())
 
         except Exception as x:
-            if self.PRINT_ERR:
+            if self.api_print_err:
                 print(self.get_balance_info.__name__, x.__class__.__name__)
 
             return False
@@ -95,10 +95,24 @@ class UPbitObject:    # 클래스
             return requests.post(self.server_url + "/v1/orders", params=query, headers=headers)
 
         except Exception as x:
-            if self.PRINT_ERR:
+            if self.api_print_err:
                 print(self.order.__name__, x.__class__.__name__)
 
             return False
+
+        """
+        ret_code: 201
+        message: 주문 성공
+
+        ret_code: 400
+        message: 최소주문금액 이하 주문
+
+        ret_code: 401
+        message: 쿼리 오류
+
+        ret_code: 500
+        message: 알수 없는 오류
+        """
 
     def look_up_all_coins(self):
         querystring = {"isDetails": "false"}
@@ -110,7 +124,7 @@ class UPbitObject:    # 클래스
                 break
 
             except Exception as x:
-                if self.PRINT_ERR:
+                if self.api_print_err:
                     print(self.look_up_all_coins.__name__, x.__class__.__name__)
 
                 time.sleep(0.1)
@@ -133,7 +147,7 @@ class UPbitObject:    # 클래스
                 break
 
             except Exception as x:
-                if self.PRINT_ERR:
+                if self.api_print_err:
                     print(i, self.get_candles.__name__, market, x.__class__.__name__)
 
                 time.sleep(0.1)
