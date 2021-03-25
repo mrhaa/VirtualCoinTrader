@@ -21,6 +21,9 @@ class NeuralNet(Learner):
     def __init__(self):
         print('NeuralNet Generate.')
 
+    def __del__(self):
+        print('NeuralNet Terminate.')
+
     def Start(self):
         print('NeuralNet Start.')
 
@@ -30,3 +33,4 @@ class NeuralNet(Learner):
 
             loop_cnt += 1
             time.sleep(5.0)
+

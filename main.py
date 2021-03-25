@@ -1,13 +1,16 @@
 #_*_ coding: utf-8 _*_
 
+import os
 import sys
-import time
+import platform
 import multiprocessing as mp
+import time
 from timeit import default_timer as timer
 
 from UPbit import API
 import Calculator
 import Learner
+import Util
 
 # 로직별 프린트가 필요한 영역 설정
 PRINT_BALANCE_STATUS_LOG = True
@@ -26,17 +29,25 @@ TRADE_COIN = False # 5. 시그널에 맞춰 매매
 # 옵션한 기능 활성화 설정
 EMPTY_ALL_POSITION = False # 모든 포지션 매도 후 프로그램 종료
 CALL_TERM_APPLY = False # API 오류 빈도에 따라 루프 주기를 자동 조절
-SAVE_SERIES_DATA = False # 학습(머신러닝 or 통계적 모수)을 위해 데이터 파일 저장
+SAVE_SERIES_DATA = True # 학습(머신러닝 or 통계적 모수)을 위해 데이터 파일 저장
 
 TEST = False
 
 LOOP_MAX_NUM = float('inf')
 
+
+base_dir = (os.path.abspath(os.path.join(os.path.dirname(__file__), '.')))
+if platform.system() == 'Windows':
+    key_dir =  '%s\\'%(base_dir)
+else:
+    key_dir = '%s/'%(base_dir)
+learning_data_dir = '%s/LearningDatas/' % (base_dir)
+
 if __name__ == '__main__':
 
     ############################################################################
     server_url = "https://api.upbit.com"
-    upbit = API.UPbitObject(server_url=server_url, SAVE_SERIES_DATA=SAVE_SERIES_DATA, API_PRINT_ERR=API_ERR_LOG)
+    upbit = API.UPbitObject(server_url=server_url, API_PRINT_ERR=API_ERR_LOG)
 
     (access_key, secret_key) = upbit.set_key()
 
@@ -157,6 +168,9 @@ if __name__ == '__main__':
                                     tm = row[0]
                                     datas = row[1]
                                     print(tm, datas)
+
+                            if SAVE_SERIES_DATA:
+                                Util.save_pickle(file="%s%s_%s_%s_0.pickle" % (learning_data_dir, series.index[0], series.index[-1], market), obj=series)
 
                             if ANALYZE_DATAS:
                                 # 100: BUY, -100: SELL
