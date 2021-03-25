@@ -148,6 +148,29 @@ class UPbitObject:    # 클래스
         else:
             return False
 
+    def get_ticker(self, market):
+
+        querystring = {}
+        querystring['markets'] = market
+
+        ret = None
+        for i in range(10):
+            try:
+                ret = pd.DataFrame(
+                    requests.request("GET", self.server_url + "/v1/ticker", params=querystring).json())
+                break
+
+            except Exception as x:
+                if self.API_PRINT_ERR:
+                    print(i, self.get_ticker.__name__, market, x.__class__.__name__)
+
+                time.sleep(0.1)
+
+        if ret is not None:
+            return ret
+        else:
+            return False
+
     def get_candles(self, market, interval_unit='minutes', interval_val='1', count=200):
 
         querystring = {}

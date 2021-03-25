@@ -11,7 +11,7 @@ import Learner
 
 # 로직별 프린트가 필요한 영역 설정
 PRINT_BALANCE_STATUS_LOG = True
-PRINT_TRADABLE_COINS_LOG = False
+PRINT_TRADABLE_COINS_LOG = True
 TIME_SERIES_DATAS_LOG = False
 PROCEDURE_ERR_LOG = True # 메인 프로시저 동작 시 오류
 API_ERR_LOG = False # 비스업 API 호출 시 오류
@@ -20,13 +20,13 @@ API_ERR_LOG = False # 비스업 API 호출 시 오류
 READ_BALANCES_ONLINE = True # 1. 비트업에서 계좌 정보를 읽음
 READ_MARKETS_ONLINE = True # 2. 비트업에서 거래 가능한 종목 리스트업
 READ_TIME_SERIES_ONLINE = True # 3. 비트업에서 시계열 데이터 읽음
-ANALYZE_DATAS = False # 4. 시그널 생성
-TRADE_COIN = False # 5.
+ANALYZE_DATAS = True # 4. 시그널 생성
+TRADE_COIN = False # 5. 시그널에 맞춰 매매
 
 # 옵션한 기능 활성화 설정
-EMPTY_ALL_POSITION = False
-CALL_TERM_APPLY = False
-SAVE_SERIES_DATA = False
+EMPTY_ALL_POSITION = False # 모든 포지션 매도 후 프로그램 종료
+CALL_TERM_APPLY = False # API 오류 빈도에 따라 루프 주기를 자동 조절
+SAVE_SERIES_DATA = False # 학습(머신러닝 or 통계적 모수)을 위해 데이터 파일 저장
 
 TEST = False
 
@@ -80,11 +80,12 @@ if __name__ == '__main__':
     target_profit = 1.015
 
     ############################################################################
-
+    # Learner를 sub-process로 생성
     nn = Learner.NeuralNet()
     p = mp.Process(target=Learner.LearnerStart, args=(nn,))
     p.start()
 
+    # Learner가 정상적으로 생성되었는지 확인
     if p.is_alive():
         print("Learner is alive")
 
@@ -124,6 +125,7 @@ if __name__ == '__main__':
                 for market in coins.index:
                     try:
                         if READ_TIME_SERIES_ONLINE:
+                            #last_tick = upbit.get_ticker(market=market)
                             series = upbit.get_candles(market=market, interval_unit=interval_unit, interval_val=interval_val, count=count)
                             if series is False:
                                 if CALL_TERM_APPLY:
@@ -196,14 +198,19 @@ if __name__ == '__main__':
                                         print(market + " 매수 성공") if ret.status_code == 201 else False
 
                                     elif signal == -100:
-                                        # 매도할 수량 계산(전체)
-                                        sell_balance = sb.balances[position_idx_nm][market]
-                                        ret = upbit.order(market=market, side='ask', volume=str(sell_balance), price=None, ord_type='market')
-                                        sb.update_balances(market, 'ask')
-                                        print(market + " 매도 성공") if ret.status_code == 201 else False
+                                        # 해당 코인을 보유하고 있는 경우 SELL 할 수 있음
+                                        if market in sb.balances_list:
+                                            # 매도할 수량 계산(전체)
+                                            sell_balance = sb.balances[position_idx_nm][market]
+                                            ret = upbit.order(market=market, side='ask', volume=str(sell_balance), price=None, ord_type='market')
+                                            sb.update_balances(market, 'ask')
+                                            print(market + " 매도 성공") if ret.status_code == 201 else False
 
                                     # 강제로 모든 포지션을 비우고 현금만 남으면 시스템 다운 시킴
                                     if EMPTY_ALL_POSITION and sb.balances_num == 1:
+                                        # Leanrner 프로세스를 끝냄
+                                        if p.is_alive():
+                                            p.terminate()
                                         sys.exit()
 
                     except Exception as x:
@@ -220,3 +227,7 @@ if __name__ == '__main__':
 
         if TEST:
             time.sleep(5.0)
+
+    # Leanrner 프로세스를 끝냄
+    if p.is_alive():
+        p.terminate()
