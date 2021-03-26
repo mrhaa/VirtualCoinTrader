@@ -17,8 +17,9 @@ if platform.system() == 'Windows':
 else:
     key_dir = '%s/'%(base_dir)
 
-class UPbitObject:    # 클래스
+class UPbit:    # 클래스
     def __init__(self, server_url, API_PRINT_ERR=True):
+        print("Generate UPbit.")
 
         self.access_key = ""
         self.secret_key = ""
@@ -26,7 +27,10 @@ class UPbitObject:    # 클래스
 
         self.API_PRINT_ERR = API_PRINT_ERR
 
-    def set_key(self):
+    def __del__(self):
+        print("Destroy UPbit.")
+
+    def get_key(self):
 
         f = open("%supbit.txt"%(key_dir))
         lines = f.readlines()
@@ -38,22 +42,29 @@ class UPbitObject:    # 클래스
 
     def get_balance_info(self):
 
-        try:
-            payload = {
-                'access_key': self.access_key,
-                'nonce': str(uuid.uuid4()),
-            }
+        ret = None
+        for i in range(10):
+            try:
+                payload = {
+                    'access_key': self.access_key,
+                    'nonce': str(uuid.uuid4()),
+                }
 
-            jwt_token = jwt.encode(payload, self.secret_key)
-            authorize_token = 'Bearer {}'.format(jwt_token)
-            headers = {"Authorization": authorize_token}
+                jwt_token = jwt.encode(payload, self.secret_key)
+                authorize_token = 'Bearer {}'.format(jwt_token)
+                headers = {"Authorization": authorize_token}
 
-            return pd.DataFrame(requests.get(self.server_url + "/v1/accounts", headers=headers).json())
+                ret = pd.DataFrame(requests.get(self.server_url + "/v1/accounts", headers=headers).json())
 
-        except Exception as x:
-            if self.API_PRINT_ERR:
-                print(self.get_balance_info.__name__, x.__class__.__name__)
+            except Exception as x:
+                if self.API_PRINT_ERR:
+                    print(self.get_balance_info.__name__, x.__class__.__name__)
 
+                time.sleep(0.1)
+
+        if ret is not None:
+            return ret
+        else:
             return False
 
     def order(self, market, side, volume, price, ord_type):
