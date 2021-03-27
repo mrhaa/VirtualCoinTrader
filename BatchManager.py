@@ -243,7 +243,8 @@ class BatchManager():
 
                                     # 강제로 모든 포지션을 비우는 경우
                                     if EMPTY_ALL_POSITION:
-                                        signal = 'SELL'
+                                        if market in balance_list:
+                                            signal = 'SELL'
                                     else:
                                         # 현금이 최소 단위의 금액 이상 있는 경우 & 해당 코인을 보유하고 있지 않은 경우 BUY 할 수 있음
                                         if market not in balance_list:
@@ -277,12 +278,12 @@ class BatchManager():
                                         if signal is not False:
                                             tm.set_balance(balance)
                                             ret = tm.execute_at_market_price(market, signal)
-                                            print("execute return: %"%(ret))
+                                            print("execute return: %s"%(ret))
                                             (balance, balance_num, balance_list, max_balance_num) = bm.update_balance_info()
                                             tm.update_balance(balance)
 
                                         # 강제로 모든 포지션을 비우고 현금만 남으면 시스템 다운 시킴
-                                        if EMPTY_ALL_POSITION and balance.balances_num == 1:
+                                        if EMPTY_ALL_POSITION and balance_num == 1:
                                             sys.exit()
 
                         except Exception as x:
