@@ -34,7 +34,7 @@ class BalanceManager():
 
         self.api = api
 
-    def get_balance(self):
+    def get_balance_info(self):
 
         self.balance = self.api.get_balance_info()
         if self.balance is not False:
@@ -53,8 +53,8 @@ class BalanceManager():
                     print(str(idx) + " " + row[0] + ", balacne: " + row[1]['balance'] + ", avg_price: " + row[1]['avg_price'])
                 print("-----------------------------------------------------------------")
 
-        return self.balance
+        return (self.balance, self.balance_num, self.balance_list, self.max_balance_num)
 
-    def updata_balance(self):
+    def update_balance_info(self):
 
-        return self.get_balance()
+        return self.get_balance_info()

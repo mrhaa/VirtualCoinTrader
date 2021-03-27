@@ -30,7 +30,7 @@ class DataManager():
 
         self.api = api
 
-    def get_series(self, market):
+    def get_series_info(self, market):
 
         self.series = self.api.get_candles(market, self.interval_unit, self.interval_val, self.count)
         if self.series is not False:
@@ -48,5 +48,5 @@ class DataManager():
                     datas = row[1]
                     print(tm, datas)
 
-        return self.series
+        return (self.series, self.series_num)
 

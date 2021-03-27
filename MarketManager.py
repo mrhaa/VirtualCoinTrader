@@ -27,7 +27,7 @@ class MarketManager():
 
         self.api = api
 
-    def get_markets(self):
+    def get_markets_info(self):
 
         self.markets = self.api.look_up_all_coins()
         if self.markets is not False:
@@ -44,4 +44,4 @@ class MarketManager():
                     print(str(idx) + " " + row[0] + ", name: " + row[1]['kr_nm'])
                 print("--------------------------------------------------------------")
 
-        return self.markets
+        return (self.markets, self.markets_num, self.markets_list)
