@@ -179,10 +179,12 @@ class UPbit:    # 클래스
         else:
             return False
 
-    def get_candles(self, market, interval_unit='minutes', interval_val='1', count=200):
+    def get_candles(self, market, to, interval_unit='minutes', interval_val='1', count=200):
 
         querystring = {}
         querystring['market'] = market
+        if to is not None:
+            querystring['to'] = to
         querystring['count'] = count
 
         ret = None

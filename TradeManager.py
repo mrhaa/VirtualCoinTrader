@@ -28,7 +28,7 @@ class TradeManager():
 
     def update_balance(self, balance):
 
-        self.set_balance(balance)
+        self.set_balance(balance=balance)
 
     def set_parameters(self, buy_amount_unit, position_idx_nm):
 

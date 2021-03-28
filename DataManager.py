@@ -30,9 +30,9 @@ class DataManager():
 
         self.api = api
 
-    def get_series_info(self, market):
+    def get_series_info(self, market, to=None):
 
-        self.series = self.api.get_candles(market, self.interval_unit, self.interval_val, self.count)
+        self.series = self.api.get_candles(market, to, self.interval_unit, self.interval_val, self.count)
         if self.series is not False:
             # series[series_idx_nm].apply(lambda x: datetime.datetime.strptime(x, "%Y-%m-%dT%H:%M:%S"))
             self.series.rename(columns={'opening_price': 'open', 'high_price': 'high', 'low_price': 'low', 'trade_price': 'close', 'candle_acc_trade_volume': 'volume'}, inplace=True)

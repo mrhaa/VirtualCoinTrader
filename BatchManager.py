@@ -170,10 +170,16 @@ class BatchManager():
                 while loop_cnt < loop_num:
                     start_tm = timer()
 
+
+
                     try:
                         if READ_DATA:
-
-                            (series, series_num) = dm.get_series_info(market)
+                            # 데이터의 시점을 정하고 데이터 요청하는 로직은 동작하지 않는 것으로 테스트 됨
+                            if 0:
+                                first_point = db.get_first_point(market=market, interval_unit=interval_unit, interval_val=interval_val)
+                                (series, series_num) = dm.get_series_info(market=market, to=first_point)
+                            else:
+                                (series, series_num) = dm.get_series_info(market)
                             db.update_series(market, interval_unit, interval_val, series, ('open', 'close', 'low', 'high', 'volume'))
 
                     except Exception as x:
@@ -207,16 +213,16 @@ class BatchManager():
         max_balance_num = 10
 
         bm = BalanceManager.BalanceManager(self.PRINT_BALANCE_STATUS_LOG)
-        bm.set_api(api)
-        bm.set_parameters(currency, balance_idx_nm1, balance_idx_nm2, max_balance_num)
+        bm.set_api(api=api)
+        bm.set_parameters(currency=currency, balance_idx_nm1=balance_idx_nm1, balance_idx_nm2=balance_idx_nm2, max_balance_num=max_balance_num)
 
         ############################################################################
         # 거래 가능한 coin 정보에서 인덱스로 사용할 컬럼명
         market_idx_nm = 'market'
 
         mm = MarketManager.MarketManager(self.PRINT_TRADABLE_MARKET_LOG)
-        mm.set_api(api)
-        mm.set_parameters(currency, market_idx_nm)
+        mm.set_api(api=api)
+        mm.set_parameters(currency=currency, market_idx_nm=market_idx_nm)
 
         ############################################################################
         # series 정보에서 인덱스로 사용할 컬럼명
@@ -226,8 +232,8 @@ class BatchManager():
         count = 200  # 최대 200개
 
         dm = DataManager.DataManager(self.PRINT_DATA_LOG)
-        dm.set_api(api)
-        dm.set_parameters_for_series(interval_unit, interval_val, count, series_idx_nm)
+        dm.set_api(api=api)
+        dm.set_parameters_for_series(interval_unit=interval_unit, interval_val=interval_val, count=count, series_idx_nm=series_idx_nm)
 
         ############################################################################
         short_term = 5
@@ -244,8 +250,8 @@ class BatchManager():
         buy_amount_unit = 10000
 
         tm = TradeManager.TradeManager()
-        tm.set_api(api)
-        tm.set_parameters(buy_amount_unit, position_idx_nm)
+        tm.set_api(api=api)
+        tm.set_parameters(buy_amount_unit=buy_amount_unit, position_idx_nm=buy_amount_unit)
 
         target_profit = 1.015
 
@@ -277,7 +283,7 @@ class BatchManager():
                         try:
                             if READ_DATA:
 
-                                (series, series_num) = dm.get_series_info(market)
+                                (series, series_num) = dm.get_series_info(market=market)
 
                                 if series is False:
                                     if CALL_TERM_APPLY:
@@ -317,7 +323,7 @@ class BatchManager():
                                                     continue
 
                                                 # 골든 크로스 BUY 시그널 계산
-                                                signal = sm.get_golden_cross_buy_signal(series, series_num, short_term=short_term, long_term=long_term
+                                                signal = sm.get_golden_cross_buy_signal(series=series, series_num=series_num, short_term=short_term, long_term=long_term
                                                     , short_term_momentum_threshold=short_term_momentum_threshold
                                                     , long_term_momentum_threshold=long_term_momentum_threshold
                                                     , volume_momentum_threshold=volume_momentum_threshold)
@@ -331,17 +337,17 @@ class BatchManager():
                                                 signal = 'SELL'
                                                 print("target profit(%s) of %s reached."%(market, target_profit))
                                             else:
-                                                signal = sm.get_dead_cross_sell_signal(series, series_num, short_term=short_term, long_term=long_term)
+                                                signal = sm.get_dead_cross_sell_signal(series=series, series_num=series_num, short_term=short_term, long_term=long_term)
                                                 if signal is not False:
                                                     print("dead_cross_signal of %s: %s"%(market, signal))
 
                                     if TRADE_COIN:
                                         if signal is not False:
                                             tm.set_balance(balance)
-                                            ret = tm.execute_at_market_price(market, signal)
+                                            ret = tm.execute_at_market_price(market=market, signal=signal)
                                             print("execute return: %s"%(ret))
                                             (balance, balance_num, balance_list, max_balance_num) = bm.update_balance_info()
-                                            tm.update_balance(balance)
+                                            tm.update_balance(balance=balance)
 
                                         # 강제로 모든 포지션을 비우고 현금만 남으면 시스템 다운 시킴
                                         if EMPTY_ALL_POSITION and balance_num == 1:

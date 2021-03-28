@@ -139,4 +139,26 @@ class DBManager():
             sql_arg = (cd, interval_unit, interval_val, date, time, open, close, low, high, volume, open, close, low, high, volume)
             self.execute_query(sql, sql_arg)
 
+    def get_first_point(self, market, interval_unit, interval_val):
+        sql = "SELECT date, time FROM price" \
+              " WHERE cd = '%s'" \
+              "   AND interval_unit = '%s'" \
+              "   AND interval_val = '%s'" \
+              " ORDER BY date, time" \
+              " LIMIT 1" %(market, interval_unit, interval_val)
+
+        #print(sql)
+        ret = self.select_query(sql, columns=('date', 'time'))
+
+        if len(ret) == 0:
+            return None
+        else:
+            date = ret['date'][0]
+            time = ret['time'][0]
+
+            return date+' '+time
+
+
+
+
 
