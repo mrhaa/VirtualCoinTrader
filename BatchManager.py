@@ -163,9 +163,9 @@ class BatchManager():
             (markets, markets_num, markets_list) = mm.get_markets_info()
             db.update_markets(markets, ('kr_nm', 'us_nm'))
 
-
             loop_cnt = 0
             while loop_cnt < loop_num:
+
                 start_tm = timer()
 
                 # 거래가 가능한 종목들을 순차적으로 돌아가며 처리
@@ -186,9 +186,13 @@ class BatchManager():
                             print(market, ": ", x.__class__.__name__)
 
                 end_tm = timer()
+                elapsed_time = end_tm-start_tm
+                sleep_time = int(count*0.9*60.0-elapsed_time)
                 # 1 Cycle Finished
                 loop_cnt += 1
-                print("Finished %s's %s Loop: %s seconds elapsed" % (market, loop_cnt, round(end_tm - start_tm, 2)))
+                print("Finished %s's %s Loop: %s seconds elapsed & sleep %s seconds" % (market, loop_cnt, round(elapsed_time, 2), sleep_time))
+
+                time.sleep(sleep_time)
 
         ############################################################################
         db.disconnect()
