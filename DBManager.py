@@ -115,14 +115,28 @@ class DBManager():
             nm_kr = row[1][columns[0]]
             nm_us = row[1][columns[1]]
 
-    def update_series(self, series, columns):
+            sql = "INSERT INTO item (cd, kr_nm, us_nm, create_time, update_time) " \
+                  "VALUES ('%s', '%s', '%s', now(), now()) ON DUPLICATE KEY UPDATE kr_nm = '%s', us_nm = '%s', update_time = now()"
+            sql_arg = (cd, nm_kr, nm_us, nm_kr, nm_us)
+            self.execute_query(sql, sql_arg)
+
+    def update_series(self, market, interval_unit, interval_val, series, columns):
         for row in series.iterrows():
+            cd = market
+            interval_unit = interval_unit
+            interval_val = interval_val
             date = row[0][:10]
             time = row[0][-8:]
-            cd = row[1][columns[0]]
-            open = row[1][columns[1]]
-            close = row[1][columns[2]]
-            low = row[1][columns[3]]
-            high = row[1][columns[4]]
-            volume = row[1][columns[5]]
+            open = row[1][columns[0]]
+            close = row[1][columns[1]]
+            low = row[1][columns[2]]
+            high = row[1][columns[3]]
+            volume = row[1][columns[4]]
+
+            sql = "INSERT INTO price (cd, interval_unit, interval_val, date, time, open, close, low, high, volume, create_time, update_time) " \
+                  "VALUES ('%s', '%s', '%s', '%s', '%s', %s, %s, %s, %s, %s, now(), now()) " \
+                  "ON DUPLICATE KEY UPDATE open = %s, close = %s, low = %s, high = %s, volume = %s, update_time = now()"
+            sql_arg = (cd, interval_unit, interval_val, date, time, open, close, low, high, volume, open, close, low, high, volume)
+            self.execute_query(sql, sql_arg)
+
 

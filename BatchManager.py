@@ -174,7 +174,7 @@ class BatchManager():
                         if READ_DATA:
 
                             (series, series_num) = dm.get_series_info(market)
-                            db.update_series(series, ('market', 'open', 'close', 'low', 'high', 'volume'))
+                            db.update_series(market, interval_unit, interval_val, series, ('open', 'close', 'low', 'high', 'volume'))
 
                     except Exception as x:
                         if self.PROCEDURE_ERR_LOG:
