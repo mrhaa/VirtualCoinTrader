@@ -108,4 +108,21 @@ class DBManager():
 
             return False
 
+    def update_markets(self, markets, columns):
+
+        for row in markets.iterrows():
+            cd = row[0]
+            nm_kr = row[1][columns[0]]
+            nm_us = row[1][columns[1]]
+
+    def update_series(self, series, columns):
+        for row in series.iterrows():
+            date = row[0][:10]
+            time = row[0][-8:]
+            cd = row[1][columns[0]]
+            open = row[1][columns[1]]
+            close = row[1][columns[2]]
+            low = row[1][columns[3]]
+            high = row[1][columns[4]]
+            volume = row[1][columns[5]]
 

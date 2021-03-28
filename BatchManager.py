@@ -1,6 +1,7 @@
 #_*_ coding: utf-8 _*_
 
 import time
+import datetime
 from timeit import default_timer as timer
 
 import sys
@@ -160,6 +161,7 @@ class BatchManager():
         if READ_MARKET:
 
             (markets, markets_num, markets_list) = mm.get_markets_info()
+            db.update_markets(markets, ('kr_nm', 'us_nm'))
 
             # 거래가 가능한 종목들을 순차적으로 돌아가며 처리
             for market in markets.index:
@@ -172,6 +174,7 @@ class BatchManager():
                         if READ_DATA:
 
                             (series, series_num) = dm.get_series_info(market)
+                            db.update_series(series, ('market', 'open', 'close', 'low', 'high', 'volume'))
 
                     except Exception as x:
                         if self.PROCEDURE_ERR_LOG:
@@ -180,7 +183,7 @@ class BatchManager():
                     end_tm = timer()
                     # 1 Cycle Finished
                     loop_cnt += 1
-                    print("Finished %s Loop: %s seconds elapsed" % (loop_cnt, round(end_tm - start_tm, 2)))
+                    print("Finished %s's %s Loop: %s seconds elapsed" % (market, loop_cnt, round(end_tm - start_tm, 2)))
 
         ############################################################################
         db.disconnect()

@@ -37,13 +37,13 @@ class DataManager():
             # series[series_idx_nm].apply(lambda x: datetime.datetime.strptime(x, "%Y-%m-%dT%H:%M:%S"))
             self.series.rename(columns={'opening_price': 'open', 'high_price': 'high', 'low_price': 'low', 'trade_price': 'close', 'candle_acc_trade_volume': 'volume'}, inplace=True)
             self.series.set_index(self.series_idx_nm, inplace=True)
-            series = self.series.sort_index()
+            self.series = self.series.sort_index()
 
             self.series_num = len(self.series.index)
 
             if self.PRINT_DATA_LOG:
-                print(series)
-                for row in series.iterrows():
+                print(self.series)
+                for row in self.series.iterrows():
                     tm = row[0]
                     datas = row[1]
                     print(tm, datas)
