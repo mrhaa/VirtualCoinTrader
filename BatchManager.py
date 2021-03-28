@@ -17,7 +17,7 @@ import DBManager
 
 
 class BatchManager():
-    def __init__(self, PRINT_BALANCE_STATUS_LOG, PRINT_TRADABLE_MARKET_LOG, PRINT_DATA_LOG, PROCEDURE_ERR_LOG, API_ERR_LOG):
+    def __init__(self, PRINT_BALANCE_STATUS_LOG=True, PRINT_TRADABLE_MARKET_LOG=True, PRINT_DATA_LOG=False, PROCEDURE_ERR_LOG=True, API_ERR_LOG=False):
         print("Generate BatchManager.")
 
         self.PRINT_BALANCE_STATUS_LOG = PRINT_BALANCE_STATUS_LOG
@@ -30,7 +30,7 @@ class BatchManager():
     def __del__(self):
         print("Destroy BatchManager.")
 
-    def test(self, TEST_LOGIC):
+    def test(self, TEST_LOGIC=False):
 
         ############################################################################
         server_url = "https://api.upbit.com"
@@ -48,8 +48,8 @@ class BatchManager():
         max_balance_num = 10
 
         bm = BalanceManager.BalanceManager(self.PRINT_BALANCE_STATUS_LOG)
-        bm.set_api(api)
-        bm.set_parameters(currency, balance_idx_nm1, balance_idx_nm2, max_balance_num)
+        bm.set_api(api=api)
+        bm.set_parameters(currency=currency, balance_idx_nm1=balance_idx_nm1, balance_idx_nm2=balance_idx_nm2, max_balance_num=max_balance_num)
         (balance, balance_num, balance_list, max_balance_num) = bm.get_balance_info()
 
         ############################################################################
@@ -57,8 +57,8 @@ class BatchManager():
         market_idx_nm = 'market'
 
         mm = MarketManager.MarketManager(self.PRINT_TRADABLE_MARKET_LOG)
-        mm.set_api(api)
-        mm.set_parameters(currency, market_idx_nm)
+        mm.set_api(api=api)
+        mm.set_parameters(currency=currency, market_idx_nm=market_idx_nm)
         (markets, markets_num, markets_list) = mm.get_markets_info()
 
         ############################################################################
@@ -80,11 +80,11 @@ class BatchManager():
         count = 200  # 최대 200개
 
         dm = DataManager.DataManager(self.PRINT_DATA_LOG)
-        dm.set_api(api)
-        dm.set_parameters_for_series(interval_unit, interval_val, count, series_idx_nm)
+        dm.set_api(api=api)
+        dm.set_parameters_for_series(interval_unit=interval_unit, interval_val=interval_val, count=count, series_idx_nm=series_idx_nm)
 
         if TEST_LOGIC:
-            (series, series_num) = dm.get_series_info('KRW-BTC')
+            (series, series_num) = dm.get_series_info(market='KRW-BTC')
 
         ############################################################################
         short_term = 5
@@ -96,10 +96,12 @@ class BatchManager():
         sm = SignalMaker.SignalMaker()
 
         if TEST_LOGIC:
-            signal = sm.get_golden_cross_buy_signal(series, series_num, short_term, long_term, short_term_momentum_threshold,
-                                                    long_term_momentum_threshold, volume_momentum_threshold)
+            signal = sm.get_golden_cross_buy_signal(series=series, series_num=series_num, short_term=short_term, long_term=long_term
+                                                    , short_term_momentum_threshold=short_term_momentum_threshold
+                                                    , long_term_momentum_threshold=long_term_momentum_threshold
+                                                    , volume_momentum_threshold=volume_momentum_threshold)
             print("golden_cross_gignal: ", signal)
-            signal = sm.get_dead_cross_sell_signal(series, series_num, short_term, long_term)
+            signal = sm.get_dead_cross_sell_signal(series=series, series_num=series_num, short_term=short_term, long_term=long_term)
             print("dead_cross_gignal: ", signal)
 
         ############################################################################
@@ -108,23 +110,79 @@ class BatchManager():
         buy_amount_unit = 10000
 
         tm = TradeManager.TradeManager()
-        tm.set_api(api)
-        tm.set_parameters(buy_amount_unit, position_idx_nm)
+        tm.set_api(api=api)
+        tm.set_parameters(buy_amount_unit=buy_amount_unit, position_idx_nm=position_idx_nm)
 
         if TEST_LOGIC:
-            tm.set_balance(balance)
-            ret = tm.execute_at_market_price('KRW-BTC', 'BUY')
+            tm.set_balance(balance=balance)
+            ret = tm.execute_at_market_price(market='KRW-BTC', signal='BUY')
             (balance, balance_num, balance_list, max_balance_num) = bm.update_balance_info()
-            tm.update_balance(balance)
+            tm.update_balance(balance=balance)
             print("BUY return: ", ret)
-            ret = tm.execute_at_market_price('KRW-BTC', 'SELL')
+            ret = tm.execute_at_market_price(market='KRW-BTC', signal='SELL')
             print("SELL return: ", ret)
 
-    def make_db_for_learner(self):
+    def make_db_for_learner(self, READ_MARKET=True, READ_DATA=True, loop_num=float('inf')):
 
+        ############################################################################
         db = DBManager.DBManager()
         db.connet(host="127.0.0.1", port=3306, database="upbit", user="root", password="ryumaria")
 
+        ############################################################################
+        server_url = "https://api.upbit.com"
+        api = UPbit.UPbit(server_url=server_url, API_PRINT_ERR=self.API_ERR_LOG)
+        (access_key, secret_key) = api.get_key()
+
+        ############################################################################
+        # 기준 통화(매수에 사용)
+        currency = 'KRW'
+
+        ############################################################################
+        # 거래 가능한 coin 정보에서 인덱스로 사용할 컬럼명
+        market_idx_nm = 'market'
+
+        mm = MarketManager.MarketManager(self.PRINT_TRADABLE_MARKET_LOG)
+        mm.set_api(api=api)
+        mm.set_parameters(currency=currency, market_idx_nm=market_idx_nm)
+
+        ############################################################################
+        # series 정보에서 인덱스로 사용할 컬럼명
+        series_idx_nm = 'candle_date_time_kst'
+        interval_unit = 'minutes'
+        interval_val = '1'
+        count = 200  # 최대 200개
+
+        dm = DataManager.DataManager(self.PRINT_DATA_LOG)
+        dm.set_api(api=api)
+        dm.set_parameters_for_series(interval_unit=interval_unit, interval_val=interval_val, count=count, series_idx_nm=series_idx_nm)
+
+        ############################################################################
+        if READ_MARKET:
+
+            (markets, markets_num, markets_list) = mm.get_markets_info()
+
+            # 거래가 가능한 종목들을 순차적으로 돌아가며 처리
+            for market in markets.index:
+
+                loop_cnt = 0
+                while loop_cnt < loop_num:
+                    start_tm = timer()
+
+                    try:
+                        if READ_DATA:
+
+                            (series, series_num) = dm.get_series_info(market)
+
+                    except Exception as x:
+                        if self.PROCEDURE_ERR_LOG:
+                            print(market, ": ", x.__class__.__name__)
+
+                    end_tm = timer()
+                    # 1 Cycle Finished
+                    loop_cnt += 1
+                    print("Finished %s Loop: %s seconds elapsed" % (loop_cnt, round(end_tm - start_tm, 2)))
+
+        ############################################################################
         db.disconnect()
 
     def loop_procedures(self, READ_BALANCE=True, READ_MARKET=True, READ_DATA=True, ANALYZE_DATA=True, TRADE_COIN=False
