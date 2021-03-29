@@ -8,6 +8,7 @@ import sys
 import multiprocessing as mp
 
 from API import UPbit
+from API import Telegram
 import BalanceManager
 import MarketManager
 import DataManager
@@ -122,6 +123,12 @@ class BatchManager():
             print("BUY return: ", ret)
             ret = tm.execute_at_market_price(market='KRW-BTC', signal='SELL')
             print("SELL return: ", ret)
+
+        ############################################################################
+        bot = Telegram.Telegram()
+        bot.get_bot()
+        bot.send_message("msg")
+
 
     def make_db_for_learner(self, READ_MARKET=True, READ_DATA=True, loop_num=float('inf')):
 
