@@ -158,7 +158,33 @@ class DBManager():
 
             return date+' '+time
 
+    def get_market_list(self):
+        sql = "SELECT DISTINCT cd FROM item"
 
+        # print(sql)
+        ret = self.select_query(sql, columns=('cd',))
+
+        if len(ret) == 0:
+            return None
+        else:
+            return list(ret['cd'])
+
+    def get_data_series(self, market, interval_unit, interval_val):
+
+        sql = "SELECT cd, interval_unit, interval_val, date, time, open, close, low, high, volume " \
+              "  FROM price" \
+              " WHERE cd = '%s'" \
+              "   AND interval_unit = '%s'" \
+              "   AND interval_val = '%s'" \
+              " ORDER BY date, time"%(market, interval_unit, interval_val)
+
+        # print(sql)
+        ret = self.select_query(sql, columns=('cd', 'interval_unit', 'interval_val', 'date', 'time', 'open', 'close', 'low', 'high', 'volume'))
+
+        if len(ret) == 0:
+            return None
+        else:
+            return ret
 
 
 

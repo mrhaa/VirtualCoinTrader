@@ -375,3 +375,23 @@ class BatchManager():
             loop_cnt += 1
             print("Finished %s Loop: %s seconds elapsed" % (loop_cnt, round(end_tm - start_tm, 2)))
 
+    def algorithm_test(self, algorithm='golden_cross'):
+
+        ############################################################################
+        db = DBManager.DBManager()
+        db.connet(host="127.0.0.1", port=3306, database="upbit", user="root", password="ryumaria")
+
+        interval_unit = 'minutes'
+        interval_val = '1'
+        market_list = db.get_market_list()
+        for market in market_list:
+            df_series = db.get_data_series(market, interval_unit, interval_val)
+            print(df_series)
+
+            if algorithm == 'golden_cross':
+                print('golden_cross')
+            
+
+
+        ############################################################################
+        db.disconnect()
