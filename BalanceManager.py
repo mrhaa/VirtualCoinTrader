@@ -44,8 +44,6 @@ class BalanceManager():
 
             self.balance_num = len(self.balance.index)
             self.balance_list = list(self.balance.index)
-            if self.balance_num > self.max_balance_num:
-                self.max_balance_num = self.balance_num
 
             if self.PRINT_BALANCE_STATUS_LOG:
                 print("----------------------- My Balance Status -----------------------")

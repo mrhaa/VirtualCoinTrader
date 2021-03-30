@@ -18,9 +18,7 @@ if __name__ == '__main__':
         TEST_LOGIC = False
         batch.test(TEST_LOGIC)
 
-
-
-    if 0:
+    if 1:
         # 프로시저 작업 활성화 단계 설정(전 단계가 True인 경우 다음 단계에가 활성화될 수 있음)
         READ_BALANCE = True  # 1. 비트업에서 계좌 정보를 읽음
         READ_MARKET = True  # 2. 비트업에서 거래 가능한 종목 리스트업
@@ -29,17 +27,22 @@ if __name__ == '__main__':
         TRADE_COIN = True  # 5. 시그널에 맞춰 매매
 
         # 옵션한 기능 활성화 설정
-        EMPTY_ALL_POSITION = True  # 모든 포지션 매도 후 프로그램 종료
+        EMPTY_ALL_POSITION = False  # 모든 포지션 매도 후 프로그램 종료
         CALL_TERM_APPLY = False  # API 오류 빈도에 따라 루프 주기를 자동 조절
+        SELL_SIGNAL = False
 
         batch.loop_procedures(READ_BALANCE, READ_MARKET, READ_DATA, ANALYZE_DATA, TRADE_COIN
-                              , EMPTY_ALL_POSITION, CALL_TERM_APPLY)
+                              , EMPTY_ALL_POSITION, CALL_TERM_APPLY, SELL_SIGNAL)
 
-    if 1:
+    if 0:
         # 프로시저 작업 활성화 단계 설정(전 단계가 True인 경우 다음 단계에가 활성화될 수 있음)
         READ_MARKET = True  # 1. 비트업에서 거래 가능한 종목 리스트업
         READ_DATA = True  # 2. 비트업에서 시계열 데이터 읽음
 
         batch.make_db_for_learner(READ_MARKET, READ_DATA)
+
+
+    if 1:
+        batch.algorithm_test()
 
 
