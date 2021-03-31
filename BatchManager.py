@@ -296,6 +296,9 @@ class BatchManager():
                     # 거래가 가능한 종목들을 순차적으로 돌아가며 처리
                     for market in markets.index:
 
+                        # 매매 성공 시 Telegram 메세지
+                        msg = ""
+
                         try:
                             if READ_DATA:
 
@@ -341,8 +344,7 @@ class BatchManager():
                                                 # signal이 발생하거나 매매 처리 예외 리스트에 없는 경우
                                                 if market not in except_market_list:
                                                     #  & 해당 코인을 보유하고 있지 않은 경우 매수, 손실률이 기준 이하인 경우 추가 매수
-                                                    if market not in balance_list or float(balance['avg_price'][market]) < series.tail(1)['close'][0]*additional_position_threshold:
-
+                                                    if market not in balance_list:
                                                         # 골든 크로스 BUY 시그널 계산
                                                         signal = sm.get_golden_cross_buy_signal(series=series, series_num=series_num, short_term=short_term, long_term=long_term
                                                             , short_term_momentum_threshold=short_term_momentum_threshold
@@ -350,8 +352,14 @@ class BatchManager():
                                                             , volume_momentum_threshold=volume_momentum_threshold)
 
                                                         if signal is not False:
-                                                            msg = "golden_cross_signal of %s: %s"%(market, signal)
-                                                            bot.send_message(msg)
+                                                            msg = "BUY, golden_cross of %s"%(market)
+
+                                                else:
+                                                    # 시장 조정이 기준 이상으로 발생할 경
+                                                    expected_profit = float(balance['avg_price'][market])/series.tail(1)['close'][0]-1
+                                                    if expected_profit < additional_position_threshold:
+                                                        signal = 'BUY'
+                                                        msg = "BUY, loss of %s is %s" % (market, round(expected_profit)*100,2)
 
                                         # 해당 코인을 보유하고 있는 경우 SELL 할 수 있음
                                         if market in balance_list:
@@ -361,31 +369,29 @@ class BatchManager():
                                                 # 목표한 수익률 달성 시 매도
                                                 if series.tail(1)['close'][0] / float(balance['avg_price'][market]) > target_profit and signal != 'BUY':
                                                     signal = 'SELL'
-
-                                                    msg = "target profit(%s) of %s reached."%(market, target_profit)
-                                                    bot.send_message(msg)
+                                                    msg = "SELL, target profit(%s) of %s is reached."%(target_profit, market)
 
                                                 if SELL_SIGNAL:
                                                     signal = sm.get_dead_cross_sell_signal(series=series, series_num=series_num, short_term=short_term, long_term=long_term)
 
                                                     if signal is not False:
                                                         expected_profit = float(balance['avg_price'][market])/series.tail(1)['close'][0]-1
-                                                        msg = "dead_cross_signal of %s: %s(%s)"%(market, signal, round(expected_profit*100,2))
-                                                        bot.send_message(msg)
+                                                        msg = "SELL, dead_cross of %s(%s)"%(market, round(expected_profit*100,2))
 
                                     if TRADE_COIN:
                                         if signal is not False:
                                             tm.set_balance(balance)
                                             ret = tm.execute_at_market_price(market=market, signal=signal)
-                                            print("execute return: %s"%(ret))
+                                            #print("execute return: %s"%(ret))
                                             (balance, balance_num, balance_list, max_balance_num) = bm.update_balance_info()
                                             tm.update_balance(balance=balance)
 
-                                            if signal == 'BUY':
-                                                msg = "dead_cross_signal of %s: %s(%s)" % (market, signal, round(expected_profit * 100, 2))
-                                            elif signal == 'SELL':
-                                                msg = "dead_cross_signal of %s: %s(%s)" % (market, signal, round(expected_profit * 100, 2))
-                                            bot.send_message(msg)
+                                            # 매매 성공
+                                            if ret.status_code == 201:
+                                                bot.send_message(msg)
+                                            elif ret.status_code == 400:
+                                            #    print(market, except_market_list, ret.text)
+                                                pass
 
                                         # 강제로 모든 포지션을 비우고 현금만 남으면 시스템 다운 시킴
                                         if EMPTY_ALL_POSITION and balance_num == 1:
