@@ -47,7 +47,7 @@ class TradeManager():
             elif trade_cd == 2:
                 buy_amount = float(self.balance['avg_price'][market])*float(self.balance['balance'][market])
             ret = self.api.order(market=market, side='bid', volume=None, price=str(buy_amount), ord_type='price')
-            print(market + " 매수 성공") if ret.status_code == 201 else False
+            #print(market + " 매수 성공") if ret.status_code == 201 else False
 
         elif signal == 'SELL':
             # 해당 코인을 보유하고 있는 경우 SELL 할 수 있음
@@ -55,7 +55,7 @@ class TradeManager():
                 # 매도할 수량 계산(전체)
                 sell_balance = self.balance[self.position_idx_nm][market]
                 ret = self.api.order(market=market, side='ask', volume=str(sell_balance), price=None, ord_type='market')
-                print(market + " 매도 성공") if ret.status_code == 201 else False
+                #print(market + " 매도 성공") if ret.status_code == 201 else False
 
         return ret
 
