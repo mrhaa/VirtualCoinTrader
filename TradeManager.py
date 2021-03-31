@@ -35,12 +35,18 @@ class TradeManager():
         self.buy_amount_unit = buy_amount_unit
         self.position_idx_nm = position_idx_nm
 
-    def execute_at_market_price(self, market, signal):
+    def execute_at_market_price(self, market, signal, trade_cd):
         # 매수 시 side='bid', price=매수금액, ord_type='price'
         # 매도 시 side='ask', volume=매도수량, ord_type='market'
         ret = False
         if signal == 'BUY':
-            ret = self.api.order(market=market, side='bid', volume=None, price=str(self.buy_amount_unit), ord_type='price')
+            # 해당 마켓 처음 매수
+            if trade_cd == 1:
+                buy_amount = self.buy_amount_unit
+            # 시장 조정으로 추가 매수
+            elif trade_cd == 2:
+                buy_amount = float(self.balance['avg_price'][market])*float(self.balance['balance'][market])
+            ret = self.api.order(market=market, side='bid', volume=None, price=str(buy_amount), ord_type='price')
             print(market + " 매수 성공") if ret.status_code == 201 else False
 
         elif signal == 'SELL':

@@ -241,9 +241,12 @@ class BatchManager():
         interval_val = '1'
         count = 20  # 최대 200개
 
+        last_idx_nm1 = 'trade_date_kst'
+        last_idx_nm2 = 'trade_time_kst'
+
         dm = DataManager.DataManager(self.PRINT_DATA_LOG)
         dm.set_api(api=api)
-        dm.set_parameters_for_series(interval_unit=interval_unit, interval_val=interval_val, count=count, series_idx_nm=series_idx_nm)
+        dm.set_parameters_for_series(interval_unit=interval_unit, interval_val=interval_val, count=count, series_idx_nm=series_idx_nm, last_idx_nm1=last_idx_nm1, last_idx_nm2=last_idx_nm2)
 
         ############################################################################
         short_term = 5
@@ -298,10 +301,17 @@ class BatchManager():
 
                         # 매매 성공 시 Telegram 메세지
                         msg = ""
+                        trade_cd = 0
 
                         try:
                             if READ_DATA:
 
+                                # 시장가 취득
+                                """
+                                last_price = dm.get_last_info(market=market)
+                                if last_price is False:
+                                    continue
+                                """
                                 (series, series_num) = dm.get_series_info(market=market)
 
                                 if series is False:
@@ -353,6 +363,7 @@ class BatchManager():
 
                                                         if signal is not False:
                                                             msg = "BUY, golden_cross of %s"%(market)
+                                                            trade_cd = 1
 
                                                 else:
                                                     # 시장 조정이 기준 이상으로 발생할 경
@@ -360,6 +371,7 @@ class BatchManager():
                                                     if expected_profit < additional_position_threshold:
                                                         signal = 'BUY'
                                                         msg = "BUY, loss of %s is %s" % (market, round(expected_profit)*100,2)
+                                                        trade_cd = 2
 
                                         # 해당 코인을 보유하고 있는 경우 SELL 할 수 있음
                                         if market in balance_list:
@@ -370,6 +382,7 @@ class BatchManager():
                                                 if series.tail(1)['close'][0] / float(balance['avg_price'][market]) > target_profit and signal != 'BUY':
                                                     signal = 'SELL'
                                                     msg = "SELL, target profit(%s) of %s is reached."%(target_profit, market)
+                                                    trade_cd = -2
 
                                                 if SELL_SIGNAL:
                                                     signal = sm.get_dead_cross_sell_signal(series=series, series_num=series_num, short_term=short_term, long_term=long_term)
@@ -377,11 +390,12 @@ class BatchManager():
                                                     if signal is not False:
                                                         expected_profit = float(balance['avg_price'][market])/series.tail(1)['close'][0]-1
                                                         msg = "SELL, dead_cross of %s(%s)"%(market, round(expected_profit*100,2))
+                                                        trade_cd = -1
 
                                     if TRADE_COIN:
                                         if signal is not False:
                                             tm.set_balance(balance)
-                                            ret = tm.execute_at_market_price(market=market, signal=signal)
+                                            ret = tm.execute_at_market_price(market=market, signal=signal, trade_cd=trade_cd)
                                             #print("execute return: %s"%(ret))
                                             (balance, balance_num, balance_list, max_balance_num) = bm.update_balance_info()
                                             tm.update_balance(balance=balance)
