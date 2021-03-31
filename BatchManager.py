@@ -307,12 +307,13 @@ class BatchManager():
                             if READ_DATA:
 
                                 # 시장가 취득
-                                """
-                                last_price = dm.get_last_info(market=market)
-                                if last_price is False:
+                                last = dm.get_last_info(market=market)
+                                if last is False:
                                     continue
-                                """
+
                                 (series, series_num) = dm.get_series_info(market=market)
+                                # 최신 데이터에 시장가 적용
+                                series['close'][-1] = last['close'][0]
 
                                 if series is False:
                                     if CALL_TERM_APPLY:
