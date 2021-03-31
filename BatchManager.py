@@ -379,15 +379,19 @@ class BatchManager():
                                             if market not in except_market_list:
                                                 # 목표한 수익률 달성 시 매도
                                                 if series.tail(1)['close'][0] / float(balance['avg_price'][market]) > target_profit and signal != 'BUY':
-                                                    # 골든 크로스 BUY 시그널 계산
+                                                    # 골든 크로스 시그널 계산
                                                     signal = sm.get_golden_cross_buy_signal(series=series, series_num=series_num, short_term=short_term, long_term=long_term
                                                                                             , short_term_momentum_threshold=short_term_momentum_threshold, long_term_momentum_threshold=long_term_momentum_threshold
                                                                                             , volume_momentum_threshold=volume_momentum_threshold)
-                                                    # 지속적인 골든 크로스가 발생하지 않는 경우 수익 실현, 모멘텀이 지속되는 경우 패스
+
+                                                    # 정배열이 없어지면 모멘텀이 사라졌다고 판단
                                                     if signal is False:
                                                         signal = 'SELL'
                                                         msg = "SELL, target profit(%s) of %s is reached."%(target_profit, market)
                                                         trade_cd = -2
+                                                    # 지속적인 골든 크로스가 발생하지 않는 경우 수익 실현, 모멘텀이 지속되는 경우 패스
+                                                    else:
+                                                        signal = False
 
                                                 if SELL_SIGNAL:
                                                     signal = sm.get_dead_cross_sell_signal(series=series, series_num=series_num, short_term=short_term, long_term=long_term)
