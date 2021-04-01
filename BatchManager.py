@@ -268,13 +268,13 @@ class BatchManager():
         # 매매 시 사용 정보
         position_idx_nm = 'balance'
         buy_amount_unit = 10000
-        additional_position_threshold = 0.9
+        additional_position_threshold = -0.15
 
         tm = TradeManager.TradeManager()
         tm.set_api(api=api)
         tm.set_parameters(buy_amount_unit=buy_amount_unit, position_idx_nm=position_idx_nm)
 
-        target_profit = 1.04
+        target_profit = 0.05
 
         ############################################################################
         bot = Telegram.Telegram()
@@ -384,7 +384,7 @@ class BatchManager():
                                                                 trade_cd = 1
                                                     else:
                                                         # 손실률이 기준 이하인 경우 추가 매수
-                                                        expected_loss = series.tail(1)['close'][0]/float(balance['avg_price'][market])
+                                                        expected_loss = series.tail(1)['close'][0]/float(balance['avg_price'][market])-1
                                                         if expected_loss < additional_position_threshold:
                                                             # 시장 조정 후 골든 크로스로 변경되는 경우 물타기
                                                             if signal == 'BUY':
@@ -397,17 +397,18 @@ class BatchManager():
                                             # signal이 발생하거나 매매 처리 예외 리스트에 없는 경우
                                             if market not in except_market_list:
                                                 # 목표한 수익률 달성 시 매도
-                                                if series.tail(1)['close'][0] / float(balance['avg_price'][market]) > target_profit:
+                                                expected_profit = series.tail(1)['close'][0]/float(balance['avg_price'][market])-1
+                                                if expected_profit > target_profit:
 
                                                     # 골든 크로스 BUY 시그널 계산
                                                     signal = sm.get_golden_cross_buy_signal(series=series, series_num=series_num, short_term=sell_short_term, long_term=sell_long_term
                                                                                             , short_term_momentum_threshold=short_term_momentum_threshold, long_term_momentum_threshold=long_term_momentum_threshold
                                                                                             , volume_momentum_threshold=volume_momentum_threshold)
-
+                                                    print(market, signal, round(series.tail(1)['close'][0],2), round(series.tail(sell_short_term)['close'].mean(),2), round(series.tail(sell_long_term)['close'].mean(),2))
                                                     # 골든 크로스 해지, 정배열이 없어지면 모멘텀이 사라졌다고 판단
                                                     if signal != 'BUY':
                                                         signal = 'SELL'
-                                                        msg = "SELL, target profit(%s) of %s is reached."%(target_profit, market)
+                                                        msg = "SELL, target profit(%s/%s) of %s is reached."%(round(expected_profit*100,2), round(target_profit*100,2), market)
                                                         trade_cd = -2
                                                     else:
                                                         signal = False
@@ -490,7 +491,7 @@ class BatchManager():
                 prev_value = curr_value
                 #df_series_transpose = df_series.transpose()
 
-            target_profit = 1.05
+            target_profit = 0.05
             signal = False
             in_value = 0
             if algorithm == 'golden_cross':
@@ -505,10 +506,10 @@ class BatchManager():
                         signal = True
                         in_value = curr_value
 
-                    profit = curr_value / in_value
+                    profit = curr_value/in_value-1
                     if profit > target_profit and signal == True:
-                        #print(market, 'profit', round(min(profit-1, target_profit-1),4))
-                        total_profit += min(profit-1, target_profit-1)
+                        #print(market, 'profit', round(min(profit, target_profit),4))
+                        total_profit += min(profit, target_profit)
 
                         signal = False
                         in_value = 0
