@@ -268,13 +268,13 @@ class BatchManager():
         # 매매 시 사용 정보
         position_idx_nm = 'balance'
         buy_amount_unit = 10000
-        additional_position_threshold = -0.15
+        additional_position_threshold = -0.145
 
         tm = TradeManager.TradeManager()
         tm.set_api(api=api)
         tm.set_parameters(buy_amount_unit=buy_amount_unit, position_idx_nm=position_idx_nm)
 
-        target_profit = 0.05
+        target_profit = 0.045
 
         ############################################################################
         bot = Telegram.Telegram()
