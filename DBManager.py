@@ -141,7 +141,7 @@ class DBManager():
 
     def save_signal(self, market, date, time, signal):
 
-        sql = "INSERT INTO transaction (cd, date, time, signal, create_time) " \
+        sql = "INSERT INTO transaction (cd, date, time, signals, create_time) " \
               "VALUES ('%s', '%s', '%s', '%s', now())"
         sql_arg = (market, date, time, signal)
         self.execute_query(sql, sql_arg)
