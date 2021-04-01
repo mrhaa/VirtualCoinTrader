@@ -208,6 +208,10 @@ class BatchManager():
                         , EMPTY_ALL_POSITION=False, CALL_TERM_APPLY=False, SELL_SIGNAL=False, loop_num=float('inf')):
 
         ############################################################################
+        db = DBManager.DBManager()
+        db.connet(host="127.0.0.1", port=3306, database="upbit", user="root", password="ryumaria")
+
+        ############################################################################
         server_url = "https://api.upbit.com"
         api = UPbit.UPbit(server_url=server_url, API_PRINT_ERR=self.API_ERR_LOG)
         (access_key, secret_key) = api.get_key()
@@ -413,6 +417,9 @@ class BatchManager():
                                             (balance, balance_num, balance_list, max_balance_num) = bm.update_balance_info()
                                             tm.update_balance(balance=balance)
 
+                                            # 매매 내역을 DB에 저장(디버그를 위함)
+                                            db.save_signal(market=market, date=series.index[-1][:10], time=series.index[-1][-8:], signal=signal)
+
                                             # 매매 성공
                                             if ret.status_code == 201:
                                                 bot.send_message(msg)
@@ -438,6 +445,9 @@ class BatchManager():
             # 1 Cycle Finished
             loop_cnt += 1
             print("Finished %s Loop: %s seconds elapsed" % (loop_cnt, round(end_tm - start_tm, 2)))
+
+        ############################################################################
+        db.disconnect()
 
     def algorithm_test(self, algorithm='golden_cross'):
 
