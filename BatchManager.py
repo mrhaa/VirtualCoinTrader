@@ -268,7 +268,7 @@ class BatchManager():
         # 매매 시 사용 정보
         position_idx_nm = 'balance'
         buy_amount_unit = 10000
-        additional_position_threshold = 0.85
+        additional_position_threshold = 0.9
 
         tm = TradeManager.TradeManager()
         tm.set_api(api=api)
@@ -290,6 +290,7 @@ class BatchManager():
         ############################################################################
 
         except_market_list = []
+        recently_sold_list = {}
         loop_cnt = 0
         while loop_cnt < loop_num:
 
@@ -305,6 +306,12 @@ class BatchManager():
 
                     # 거래가 가능한 종목들을 순차적으로 돌아가며 처리
                     for market in markets.index:
+
+                        # 최근 매도한 마켓 리스트 중 일정 시간이 지나면 재매수할 수 있음
+                        if market in list(recently_sold_list.keys()):
+                            if timer() - recently_sold_list[market] > 60:
+                                recently_sold_list.pop(market)
+                                print(market+"은 최근 매도 리스트에서 제외.")
 
                         # 매매 성공 시 Telegram 메세지
                         msg = ""
@@ -369,8 +376,12 @@ class BatchManager():
                                                     # 해당 코인을 보유하고 있지 않은 경우 매수
                                                     if market not in balance_list:
                                                         if signal == 'BUY':
-                                                            msg = "BUY, golden_cross of %s"%(market)
-                                                            trade_cd = 1
+                                                            # 최근 매도한 마켓의 경우 잠시 동안 매수하지 않음
+                                                            if market in list(recently_sold_list.keys()):
+                                                                signal = False
+                                                            else:
+                                                                msg = "BUY, golden_cross of %s"%(market)
+                                                                trade_cd = 1
                                                     else:
                                                         # 손실률이 기준 이하인 경우 추가 매수
                                                         expected_loss = series.tail(1)['close'][0]/float(balance['avg_price'][market])
@@ -419,6 +430,9 @@ class BatchManager():
 
                                             # 매매 내역을 DB에 저장(디버그를 위함)
                                             db.save_signal(market=market, date=series.index[-1][:10], time=series.index[-1][-8:], signal=signal)
+
+                                            if signal == 'SELL':
+                                                recently_sold_list[market] = timer()
 
                                             # 매매 성공
                                             if ret.status_code == 201:
