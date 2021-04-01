@@ -255,6 +255,9 @@ class BatchManager():
         long_term_momentum_threshold = 1.0 #1.002
         volume_momentum_threshold = None #1.01
 
+        sell_short_term = 3
+        sell_long_term = 10
+
         sm = SignalMaker.SignalMaker()
 
         ############################################################################
@@ -352,14 +355,13 @@ class BatchManager():
                                                 #print("현재 %s/%s 포지션 보유중으로 %s 추가 매수 불가"%(balance_num, max_balance_num, market))
                                                 pass
                                             else:
-
-                                                # 골든 크로스 BUY 시그널 계산
-                                                signal = sm.get_golden_cross_buy_signal(series=series, series_num=series_num, short_term=short_term, long_term=long_term
-                                                                                        , short_term_momentum_threshold=short_term_momentum_threshold, long_term_momentum_threshold=long_term_momentum_threshold
-                                                                                        , volume_momentum_threshold=volume_momentum_threshold)
-
                                                 # signal이 발생하거나 매매 처리 예외 리스트에 없는 경우
                                                 if market not in except_market_list:
+                                                    # 골든 크로스 BUY 시그널 계산
+                                                    signal = sm.get_golden_cross_buy_signal(series=series, series_num=series_num, short_term=short_term, long_term=long_term
+                                                                                            , short_term_momentum_threshold=short_term_momentum_threshold, long_term_momentum_threshold=long_term_momentum_threshold
+                                                                                            , volume_momentum_threshold=volume_momentum_threshold)
+
                                                     # 해당 코인을 보유하고 있지 않은 경우 매수
                                                     if market not in balance_list:
                                                         if signal == 'BUY':
@@ -381,14 +383,22 @@ class BatchManager():
                                             if market not in except_market_list:
                                                 # 목표한 수익률 달성 시 매도
                                                 if series.tail(1)['close'][0] / float(balance['avg_price'][market]) > target_profit:
+
+                                                    # 골든 크로스 BUY 시그널 계산
+                                                    signal = sm.get_golden_cross_buy_signal(series=series, series_num=series_num, short_term=sell_short_term, long_term=sell_long_term
+                                                                                            , short_term_momentum_threshold=short_term_momentum_threshold, long_term_momentum_threshold=long_term_momentum_threshold
+                                                                                            , volume_momentum_threshold=volume_momentum_threshold)
+
                                                     # 골든 크로스 해지, 정배열이 없어지면 모멘텀이 사라졌다고 판단
                                                     if signal != 'BUY':
                                                         signal = 'SELL'
                                                         msg = "SELL, target profit(%s) of %s is reached."%(target_profit, market)
                                                         trade_cd = -2
+                                                    else:
+                                                        signal = False
 
                                                 if SELL_SIGNAL:
-                                                    signal = sm.get_dead_cross_sell_signal(series=series, series_num=series_num, short_term=short_term, long_term=long_term)
+                                                    signal = sm.get_dead_cross_sell_signal(series=series, series_num=series_num, short_term=sell_short_term, long_term=sell_long_term)
 
                                                     if signal == 'SELL':
                                                         expected_profit = float(balance['avg_price'][market])/series.tail(1)['close'][0]-1
