@@ -338,7 +338,7 @@ class BatchManager():
                                             # 최대 0.1초까지 증가 시킬 수 있음
                                             call_term = min(call_term * 1.1, 0.1)
                                             call_err_score = 0
-                                            print("API call term extended to %s" % (round(call_term, 4)))
+                                            print("API call term extended to %s"%(round(call_term,4)))
                                     print("No data series.")
                                     continue
 
@@ -349,7 +349,7 @@ class BatchManager():
                                         if call_err_score > call_err_pos_score_threshold:
                                             call_term = call_term * 0.9
                                             call_err_score = 0
-                                            print("API call term reduced to %s" % (round(call_term, 4)))
+                                            print("API call term reduced to %s"%(round(call_term,4)))
 
                                 if ANALYZE_DATA:
                                     # BUY, SELL
@@ -391,7 +391,7 @@ class BatchManager():
                                                             print('추가 매수 시도:', market, signal, round(expected_loss*100,2), round(series.tail(1)['close'][0],2), round(series.tail(sell_short_term)['close'].mean(),2), round(series.tail(sell_long_term)['close'].mean(),2))
                                                             # 시장 조정 후 골든 크로스로 변경되는 경우 물타기
                                                             if signal == 'BUY':
-                                                                msg = "BUY: loss of %s is %s. buy addtional position." % (market, round(expected_loss*100,2))
+                                                                msg = "BUY: loss of %s is %s. buy addtional position."%(market, round(expected_loss*100,2))
                                                                 trade_cd = 2
 
                                         # 해당 코인을 보유하고 있는 경우 SELL 할 수 있음
