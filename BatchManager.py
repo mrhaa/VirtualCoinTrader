@@ -255,8 +255,8 @@ class BatchManager():
         ############################################################################
         short_term = 5
         long_term = 20
-        short_term_momentum_threshold = 0.95 # 값이 작을 수록 빠르게 진입 & 빠르게 탈출
-        long_term_momentum_threshold = 0.93 # 값이 작을 수록 빠르게 진입 & 빠르게 탈출
+        short_term_momentum_threshold = 0.96 # 값이 작을 수록 빠르게 진입 & 빠르게 탈출
+        long_term_momentum_threshold = 0.94 # 값이 작을 수록 빠르게 진입 & 빠르게 탈출
         volume_momentum_threshold = None # 1.0
 
         sell_short_term = 3
@@ -391,7 +391,7 @@ class BatchManager():
                                                             print('추가 매수 시도:', market, signal, round(expected_loss*100,2), round(series.tail(1)['close'][0],2), round(series.tail(sell_short_term)['close'].mean(),2), round(series.tail(sell_long_term)['close'].mean(),2))
                                                             # 시장 조정 후 골든 크로스로 변경되는 경우 물타기
                                                             if signal == 'BUY':
-                                                                msg = "BUY: loss of %s is %s. buy addtional postion." % (market, round(expected_loss*100,2))
+                                                                msg = "BUY: loss of %s is %s. buy addtional position." % (market, round(expected_loss*100,2))
                                                                 trade_cd = 2
 
                                         # 해당 코인을 보유하고 있는 경우 SELL 할 수 있음
