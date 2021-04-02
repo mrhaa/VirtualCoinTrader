@@ -267,7 +267,7 @@ class BatchManager():
         ############################################################################
         # 매매 시 사용 정보
         position_idx_nm = 'balance'
-        buy_amount_unit = 10000
+        buy_amount_unit = 20000
         additional_position_threshold = -0.145
 
         tm = TradeManager.TradeManager()
@@ -309,7 +309,7 @@ class BatchManager():
 
                         # 최근 매도한 마켓 리스트 중 일정 시간이 지나면 재매수할 수 있음
                         if market in list(recently_sold_list.keys()):
-                            if timer() - recently_sold_list[market] > 60:
+                            if timer() - recently_sold_list[market] > 120:
                                 recently_sold_list.pop(market)
                                 print(market+"은 최근 매도 리스트에서 제외.")
 
@@ -323,6 +323,7 @@ class BatchManager():
                                 # 시장가 취득
                                 last = dm.get_last_info(market=market)
                                 if last is False:
+                                    print("No last data.")
                                     continue
 
                                 (series, series_num) = dm.get_series_info(market=market)
@@ -338,6 +339,7 @@ class BatchManager():
                                             call_term = min(call_term * 1.1, 0.1)
                                             call_err_score = 0
                                             print("API call term extended to %s" % (round(call_term, 4)))
+                                    print("No data series.")
                                     continue
 
                                 else:
@@ -360,10 +362,10 @@ class BatchManager():
                                     else:
                                         # 현금이 최소 단위의 금액 이상 있는 경우 BUY 할 수 있음
                                         if float(balance[position_idx_nm][currency+'-'+currency]) > buy_amount_unit:
-
                                             # 최대 보유 가능 종류 수량을 넘는 경우
                                             if balance_num > max_balance_num:
-                                                #print("현재 %s/%s 포지션 보유중으로 %s 추가 매수 불가"%(balance_num, max_balance_num, market))
+                                                if loop_cnt%100 == 0:
+                                                    print("현재 %s/%s 포지션 보유중으로 %s 추가 매수 불가"%(balance_num, max_balance_num, market))
                                                 pass
                                             else:
                                                 # signal이 발생하거나 매매 처리 예외 리스트에 없는 경우
@@ -371,7 +373,7 @@ class BatchManager():
                                                     # 골든 크로스 BUY 시그널 계산
                                                     signal = sm.get_golden_cross_buy_signal(series=series, series_num=series_num, short_term=short_term, long_term=long_term
                                                                                             , short_term_momentum_threshold=short_term_momentum_threshold, long_term_momentum_threshold=long_term_momentum_threshold
-                                                                                            , volume_momentum_threshold=volume_momentum_threshold)
+                                                                                            , volume_momentum_threshold=volume_momentum_threshold, direction=1)
 
                                                     # 해당 코인을 보유하고 있지 않은 경우 매수
                                                     if market not in balance_list:
@@ -393,18 +395,16 @@ class BatchManager():
 
                                         # 해당 코인을 보유하고 있는 경우 SELL 할 수 있음
                                         if market in balance_list:
-
                                             # signal이 발생하거나 매매 처리 예외 리스트에 없는 경우
                                             if market not in except_market_list:
                                                 # 목표한 수익률 달성 시 매도
                                                 expected_profit = series.tail(1)['close'][0]/float(balance['avg_price'][market])-1
                                                 if expected_profit > target_profit:
-
                                                     # 골든 크로스 BUY 시그널 계산
                                                     signal = sm.get_golden_cross_buy_signal(series=series, series_num=series_num, short_term=sell_short_term, long_term=sell_long_term
                                                                                             , short_term_momentum_threshold=short_term_momentum_threshold, long_term_momentum_threshold=long_term_momentum_threshold
-                                                                                            , volume_momentum_threshold=volume_momentum_threshold)
-                                                    print(market, signal, round(series.tail(1)['close'][0],2), round(series.tail(sell_short_term)['close'].mean(),2), round(series.tail(sell_long_term)['close'].mean(),2))
+                                                                                            , volume_momentum_threshold=volume_momentum_threshold, direction=-1)
+                                                    print(market, signal, round(expected_profit*100,2), round(series.tail(1)['close'][0],2), round(series.tail(sell_short_term)['close'].mean(),2), round(series.tail(sell_long_term)['close'].mean(),2))
                                                     # 골든 크로스 해지, 정배열이 없어지면 모멘텀이 사라졌다고 판단
                                                     if signal != 'BUY':
                                                         signal = 'SELL'
@@ -430,7 +430,7 @@ class BatchManager():
                                             tm.update_balance(balance=balance)
 
                                             # 매매 내역을 DB에 저장(디버그를 위함)
-                                            db.save_signal(market=market, date=series.index[-1][:10], time=series.index[-1][-8:], signal=signal)
+                                            db.save_signal(market=market, date=series.index[-1][:10], time=series.index[-1][-8:], signal=signal, trade_cd=trade_cd)
 
                                             if signal == 'SELL':
                                                 recently_sold_list[market] = timer()
@@ -448,7 +448,8 @@ class BatchManager():
 
                         # 일시적으로 거래가 정지된 마켓은 예외 대상으로 등록
                         except UnboundLocalError:
-                            except_market_list.append(market)
+                            #except_market_list.append(market)
+                            pass
                         except Exception as x:
                             if self.PROCEDURE_ERR_LOG:
                                 print(market, ": ", x.__class__.__name__)
@@ -459,7 +460,9 @@ class BatchManager():
             end_tm = timer()
             # 1 Cycle Finished
             loop_cnt += 1
-            print("Finished %s Loop: %s seconds elapsed" % (loop_cnt, round(end_tm - start_tm, 2)))
+
+            if loop_cnt % 100 == 0:
+                print("Finished %s Loop: %s seconds elapsed" % (loop_cnt, round(end_tm - start_tm, 2)))
 
         ############################################################################
         db.disconnect()

@@ -139,11 +139,11 @@ class DBManager():
             sql_arg = (cd, interval_unit, interval_val, date, time, open, close, low, high, volume, open, close, low, high, volume)
             self.execute_query(sql, sql_arg)
 
-    def save_signal(self, market, date, time, signal):
+    def save_signal(self, market, date, time, signal, trade_cd):
 
-        sql = "INSERT INTO transaction (cd, date, time, signals, create_time) " \
-              "VALUES ('%s', '%s', '%s', '%s', now())"
-        sql_arg = (market, date, time, signal)
+        sql = "INSERT INTO transaction (cd, date, time, signals, trade_cd, create_time) " \
+              "VALUES ('%s', '%s', '%s', '%s', %s, now())"
+        sql_arg = (market, date, time, signal, trade_cd)
         self.execute_query(sql, sql_arg)
 
     def get_first_point(self, market, interval_unit, interval_val):
