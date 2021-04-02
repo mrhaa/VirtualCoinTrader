@@ -255,7 +255,7 @@ class BatchManager():
         ############################################################################
         short_term = 5
         long_term = 20
-        short_term_momentum_threshold = 0.96 # 값이 작을 수록 빠르게 진입 & 빠르게 탈출
+        short_term_momentum_threshold = 0.95 # 값이 작을 수록 빠르게 진입 & 빠르게 탈출
         long_term_momentum_threshold = 0.94 # 값이 작을 수록 빠르게 진입 & 빠르게 탈출
         volume_momentum_threshold = None # 1.0
 
