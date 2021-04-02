@@ -26,10 +26,15 @@ class SignalMaker:    # 클래스
         short_avg_volume = series.tail(short_len)['volume'].mean()
         long_avg_volume = series.tail(long_len)['volume'].mean()
 
-        if price > short_avg_price * short_term_momentum_threshold and short_avg_price > long_avg_price * long_term_momentum_threshold:
-            if volume_momentum_threshold is None or short_avg_volume > long_avg_volume * volume_momentum_threshold:
+        # 신규 포지션을 위해 골든 크로스 확인하는 경우: 1 or 이익 실현을 위해 골든 크로스 확인하는 경우: -1
+        # 두 경우를 반대로 적용하면 더 빠르게 반응할 수 있다.
+        short_multiple = short_term_momentum_threshold if direction == 1 else 1/short_term_momentum_threshold
+        long_multiple = long_term_momentum_threshold if direction == 1 else 1/long_term_momentum_threshold
+        if price > short_avg_price*short_multiple and short_avg_price > long_avg_price*long_multiple:
+            if volume_momentum_threshold is None or short_avg_volume > long_avg_volume*volume_momentum_threshold:
                 return 'BUY'
-
+            else:
+                return False
         else:
             return False
 
@@ -51,8 +56,6 @@ class SignalMaker:    # 클래스
         long_avg_volume = series.tail(long_len)['volume'].mean()
 
         if price < short_avg_price and short_avg_price < long_avg_price and short_avg_volume > long_avg_volume:
-
             return 'SELL'
-
         else:
             return False

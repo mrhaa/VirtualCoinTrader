@@ -255,9 +255,9 @@ class BatchManager():
         ############################################################################
         short_term = 5
         long_term = 20
-        short_term_momentum_threshold = 1.0 #1.005
-        long_term_momentum_threshold = 1.0 #1.002
-        volume_momentum_threshold = None #1.01
+        short_term_momentum_threshold = 0.95 # 값이 작을 수록 빠르게 진입 & 빠르게 탈출
+        long_term_momentum_threshold = 0.93 # 값이 작을 수록 빠르게 진입 & 빠르게 탈출
+        volume_momentum_threshold = None # 1.0
 
         sell_short_term = 3
         sell_long_term = 10
@@ -382,15 +382,16 @@ class BatchManager():
                                                             if market in list(recently_sold_list.keys()):
                                                                 signal = False
                                                             else:
-                                                                msg = "BUY, golden_cross of %s"%(market)
+                                                                msg = "BUY: golden_cross of %s"%(market)
                                                                 trade_cd = 1
                                                     else:
                                                         # 손실률이 기준 이하인 경우 추가 매수
                                                         expected_loss = series.tail(1)['close'][0]/float(balance['avg_price'][market])-1
                                                         if expected_loss < additional_position_threshold:
+                                                            print('추가 매수 시도:', market, signal, round(expected_loss*100,2), round(series.tail(1)['close'][0],2), round(series.tail(sell_short_term)['close'].mean(),2), round(series.tail(sell_long_term)['close'].mean(),2))
                                                             # 시장 조정 후 골든 크로스로 변경되는 경우 물타기
                                                             if signal == 'BUY':
-                                                                msg = "BUY, loss of %s is %s" % (market, round(expected_loss*100,2))
+                                                                msg = "BUY: loss of %s is %s. buy addtional postion." % (market, round(expected_loss*100,2))
                                                                 trade_cd = 2
 
                                         # 해당 코인을 보유하고 있는 경우 SELL 할 수 있음
@@ -404,11 +405,11 @@ class BatchManager():
                                                     signal = sm.get_golden_cross_buy_signal(series=series, series_num=series_num, short_term=sell_short_term, long_term=sell_long_term
                                                                                             , short_term_momentum_threshold=short_term_momentum_threshold, long_term_momentum_threshold=long_term_momentum_threshold
                                                                                             , volume_momentum_threshold=volume_momentum_threshold, direction=-1)
-                                                    print(market, signal, round(expected_profit*100,2), round(series.tail(1)['close'][0],2), round(series.tail(sell_short_term)['close'].mean(),2), round(series.tail(sell_long_term)['close'].mean(),2))
+                                                    print('수익 실현 시도:', market, signal, round(expected_profit*100,2), round(series.tail(1)['close'][0],2), round(series.tail(sell_short_term)['close'].mean(),2), round(series.tail(sell_long_term)['close'].mean(),2))
                                                     # 골든 크로스 해지, 정배열이 없어지면 모멘텀이 사라졌다고 판단
                                                     if signal != 'BUY':
                                                         signal = 'SELL'
-                                                        msg = "SELL, target profit(%s/%s) of %s is reached."%(round(expected_profit*100,2), round(target_profit*100,2), market)
+                                                        msg = "SELL: target profit(%s/%s) of %s is reached."%(round(expected_profit*100,2), round(target_profit*100,2), market)
                                                         trade_cd = -2
                                                     else:
                                                         signal = False
@@ -418,7 +419,7 @@ class BatchManager():
 
                                                     if signal == 'SELL':
                                                         expected_profit = float(balance['avg_price'][market])/series.tail(1)['close'][0]-1
-                                                        msg = "SELL, dead_cross of %s(%s)"%(market, round(expected_profit*100,2))
+                                                        msg = "SELL: dead_cross of %s(%s)"%(market, round(expected_profit*100,2))
                                                         trade_cd = -1
 
                                     if TRADE_COIN:
