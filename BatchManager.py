@@ -256,8 +256,8 @@ class BatchManager():
         ############################################################################
         short_term = 5
         long_term = 20
-        short_term_momentum_threshold = 0.95 # 값이 작을 수록 빠르게 진입 & 빠르게 탈출
-        long_term_momentum_threshold = 0.94 # 값이 작을 수록 빠르게 진입 & 빠르게 탈출
+        short_term_momentum_threshold = 0.98 # 값이 작을 수록 빠르게 진입 & 빠르게 탈출
+        long_term_momentum_threshold = 0.97 # 값이 작을 수록 빠르게 진입 & 빠르게 탈출
         volume_momentum_threshold = None # 1.0
 
         sell_short_term = 3
@@ -327,15 +327,16 @@ class BatchManager():
 
                                 # 최근 매도한 코인 재매수할 지 판단, 급등 이후 재매수를 통해 물리는 경우 방지
                                 if market in list(recently_sold_list.keys()):
+                                    print(recently_sold_list, series['close'][-price_lag])
+
                                     if RE_BID_TYPE == 'TIME':
                                         time_lag = 120
                                         # 최근 매도한 마켓 리스트 중 일정 시간이 지나면 재매수할 수 있음
                                         if timer()-recently_sold_list[market]['TIME'] > time_lag:
-                                            print(market + "은 최근 매도 리스트에서 제외(TIME).")
+                                            print(market + "은 최근 매도 리스트에서 제외(TIME, %s)."%(time_lag))
                                             recently_sold_list.pop(market)
 
                                     elif RE_BID_TYPE == 'PRICE':
-                                        print(recently_sold_list)
                                         # 최근 매도한 마켓 리스트 중 일정 수준 이상 오르지 않았으면 재매수할 수 있음
                                         price_lag = 1
                                         surge_rate = 0.05
@@ -345,8 +346,8 @@ class BatchManager():
 
                                         time_lag = 300
                                         # 최근 매도한 마켓 리스트 중 일정 시간이 지나면 재매수할 수 있음
-                                        if timer() - recently_sold_list[market]['TIME'] > time_lag:
-                                            print(market + "은 최근 매도 리스트에서 제외(TIME).")
+                                        if timer()-recently_sold_list[market]['TIME'] > time_lag:
+                                            print(market + "은 최근 매도 리스트에서 제외(TIME, %s)."%(time_lag))
                                             recently_sold_list.pop(market)
 
 
@@ -421,7 +422,7 @@ class BatchManager():
 
                                                 # 물렸던 경우 목표 수익률 보다 낮은 수준에서 차익 실현
                                                 profit_multiple = 1.0
-                                                if float(balance['avg_price'][market])*float(balance['balance'][market]) > buy_amount_unit*2:
+                                                if series.tail(1)['close'][0]*float(balance['balance'][market]) > buy_amount_unit*2:
                                                     profit_multiple = 1.5
 
                                                 # 목표한 수익률 달성 시 매도
@@ -432,7 +433,7 @@ class BatchManager():
                                                     signal = sm.get_golden_cross_buy_signal(series=series, series_num=series_num, short_term=sell_short_term, long_term=sell_long_term
                                                                                             , short_term_momentum_threshold=short_term_momentum_threshold, long_term_momentum_threshold=long_term_momentum_threshold
                                                                                             , volume_momentum_threshold=volume_momentum_threshold, direction=-1)
-                                                    print('수익 실현 시도:', market, signal, round(expected_profit*100,2), round(series.tail(1)['close'][0],2), round(series.tail(sell_short_term)['close'].mean(),2), round(series.tail(sell_long_term)['close'].mean(),2))
+                                                    print('수익 실현 시도:', market, signal, round(expected_profit/profit_multiple*100,2), round(series.tail(1)['close'][0],2), round(series.tail(sell_short_term)['close'].mean(),2), round(series.tail(sell_long_term)['close'].mean(),2))
                                                     # 골든 크로스 해지, 정배열이 없어지면 모멘텀이 사라졌다고 판단
                                                     if signal != 'BUY':
                                                         signal = 'SELL'
