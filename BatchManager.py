@@ -197,7 +197,7 @@ class BatchManager():
                 sleep_time = int(count*0.9*60.0-elapsed_time)
                 # 1 Cycle Finished
                 loop_cnt += 1
-                print("Finished %s's %s Loop: %s seconds elapsed & sleep %s seconds" % (market, loop_cnt, round(elapsed_time, 2), sleep_time))
+                print("Finished %s's %s Loop: %s seconds elapsed & sleep %s seconds"%(market, loop_cnt, round(elapsed_time,2), sleep_time))
 
                 time.sleep(sleep_time)
 
@@ -268,7 +268,8 @@ class BatchManager():
         ############################################################################
         # 매매 시 사용 정보
         position_idx_nm = 'balance'
-        buy_amount_unit = 10000.0*2
+        buy_amount_multiple = 2
+        buy_amount_unit = 10000.0*buy_amount_multiple
         additional_position_threshold = -0.145
 
         tm = TradeManager.TradeManager()
@@ -418,7 +419,7 @@ class BatchManager():
 
                                                 # 물렸던 경우 목표 수익률 보다 낮은 수준에서 차익 실현
                                                 profit_multiple = 1.0
-                                                if series.tail(1)['close'][0]*float(balance['balance'][market]) > buy_amount_unit*2:
+                                                if series.tail(1)['close'][0]*float(balance['balance'][market]) > buy_amount_unit*buy_amount_multiple:
                                                     profit_multiple = 1.5
 
                                                 # 목표한 수익률 달성 시 매도
@@ -487,7 +488,7 @@ class BatchManager():
             loop_cnt += 1
 
             if loop_cnt % 100 == 0:
-                print("Finished %s Loop: %s seconds elapsed" % (loop_cnt, round(end_tm - start_tm, 2)))
+                print("Finished %s Loop: %s seconds elapsed"%(loop_cnt, round(end_tm-start_tm,2)))
                 print("recently_sold_list: ", recently_sold_list)
 
         ############################################################################
