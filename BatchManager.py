@@ -328,16 +328,25 @@ class BatchManager():
                                 # 최근 매도한 코인 재매수할 지 판단, 급등 이후 재매수를 통해 물리는 경우 방지
                                 if market in list(recently_sold_list.keys()):
                                     if RE_BID_TYPE == 'TIME':
+                                        time_lag = 120
                                         # 최근 매도한 마켓 리스트 중 일정 시간이 지나면 재매수할 수 있음
-                                        if timer()-recently_sold_list[market] > 120:
+                                        if timer()-recently_sold_list[market]['TIME'] > time_lag:
                                             print(market + "은 최근 매도 리스트에서 제외(TIME).")
                                             recently_sold_list.pop(market)
 
                                     elif RE_BID_TYPE == 'PRICE':
+                                        print(recently_sold_list)
                                         # 최근 매도한 마켓 리스트 중 일정 수준 이상 오르지 않았으면 재매수할 수 있음
-                                        lag = 2
-                                        if series['close'][-lag]/recently_sold_list[market]-1 < 0.1:
-                                            print(market + "은 최근 매도 리스트에서 제외(PRICE, %s)." % (round(series['close'][-lag]/recently_sold_list[market]-1, 2)))
+                                        price_lag = 1
+                                        surge_rate = 0.05
+                                        if series['close'][-price_lag]/recently_sold_list[market]['PRICE']-1 < surge_rate:
+                                            print(market + "은 최근 매도 리스트에서 제외(PRICE, %s)." % (round(series['close'][-price_lag]/recently_sold_list[market]['PRICE']-1, 2)))
+                                            recently_sold_list.pop(market)
+
+                                        time_lag = 300
+                                        # 최근 매도한 마켓 리스트 중 일정 시간이 지나면 재매수할 수 있음
+                                        if timer() - recently_sold_list[market]['TIME'] > time_lag:
+                                            print(market + "은 최근 매도 리스트에서 제외(TIME).")
                                             recently_sold_list.pop(market)
 
 
@@ -452,10 +461,7 @@ class BatchManager():
                                             db.save_signal(market=market, date=series.index[-1][:10], time=series.index[-1][-8:], signal=signal, trade_cd=trade_cd)
 
                                             if signal == 'SELL':
-                                                if RE_BID_TYPE == 'TIME':
-                                                    recently_sold_list[market] = timer()
-                                                elif RE_BID_TYPE == 'PRICE':
-                                                    recently_sold_list[market] = series.tail(1)['close'][0]
+                                                recently_sold_list[market] = {'TIME':timer(), 'PRICE':series.tail(1)['close'][0]}
 
                                             # 매매 성공
                                             if ret.status_code == 201:
