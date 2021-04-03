@@ -6,7 +6,7 @@ import pyupbit
 if __name__ == '__main__':
 
     # 로직별 프린트가 필요한 영역 설정
-    PRINT_BALANCE_STATUS_LOG = True
+    PRINT_BALANCE_STATUS_LOG = False
     PRINT_TRADABLE_MARKET_LOG = False
     PRINT_DATA_LOG = False
     PROCEDURE_ERR_LOG = True  # 메인 프로시저 동작 시 오류
@@ -30,9 +30,10 @@ if __name__ == '__main__':
         EMPTY_ALL_POSITION = False  # 모든 포지션 매도 후 프로그램 종료
         CALL_TERM_APPLY = False  # API 오류 빈도에 따라 루프 주기를 자동 조절
         SELL_SIGNAL = False
+        RE_BID_TYPE = 'PRICE' # 'PRICE', 'TIME'
 
         batch.loop_procedures(READ_BALANCE, READ_MARKET, READ_DATA, ANALYZE_DATA, TRADE_COIN
-                              , EMPTY_ALL_POSITION, CALL_TERM_APPLY, SELL_SIGNAL)
+                              , EMPTY_ALL_POSITION, CALL_TERM_APPLY, SELL_SIGNAL, RE_BID_TYPE)
 
     if 0:
         # 프로시저 작업 활성화 단계 설정(전 단계가 True인 경우 다음 단계에가 활성화될 수 있음)

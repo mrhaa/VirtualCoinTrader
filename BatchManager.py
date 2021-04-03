@@ -205,7 +205,8 @@ class BatchManager():
         db.disconnect()
 
     def loop_procedures(self, READ_BALANCE=True, READ_MARKET=True, READ_DATA=True, ANALYZE_DATA=True, TRADE_COIN=False
-                        , EMPTY_ALL_POSITION=False, CALL_TERM_APPLY=False, SELL_SIGNAL=False, loop_num=float('inf')):
+                        , EMPTY_ALL_POSITION=False, CALL_TERM_APPLY=False, SELL_SIGNAL=False, RE_BID_TYPE='PRICE'
+                        , loop_num=float('inf')):
 
         ############################################################################
         db = DBManager.DBManager()
@@ -307,12 +308,6 @@ class BatchManager():
                     # 거래가 가능한 종목들을 순차적으로 돌아가며 처리
                     for market in markets.index:
 
-                        # 최근 매도한 마켓 리스트 중 일정 시간이 지나면 재매수할 수 있음
-                        if market in list(recently_sold_list.keys()):
-                            if timer() - recently_sold_list[market] > 120:
-                                recently_sold_list.pop(market)
-                                print(market+"은 최근 매도 리스트에서 제외.")
-
                         # 매매 성공 시 Telegram 메세지
                         msg = ""
                         trade_cd = 0
@@ -330,13 +325,28 @@ class BatchManager():
                                 # 최신 데이터에 시장가 적
                                 series['close'][-1] = last['close'][0]
 
+                                # 최근 매도한 코인 재매수할 지 판단, 급등 이후 재매수를 통해 물리는 경우 방지
+                                if market in list(recently_sold_list.keys()):
+                                    if RE_BID_TYPE == 'TIME':
+                                        # 최근 매도한 마켓 리스트 중 일정 시간이 지나면 재매수할 수 있음
+                                        if timer()-recently_sold_list[market] > 120:
+                                            print(market + "은 최근 매도 리스트에서 제외(TIME).")
+                                            recently_sold_list.pop(market)
+
+                                    elif RE_BID_TYPE == 'PRICE':
+                                        # 최근 매도한 마켓 리스트 중 일정 수준 이상 오르지 않았으면 재매수할 수 있음
+                                        if series['close'][-1]/recently_sold_list[market]-1 < 0.02:
+                                            print(market + "은 최근 매도 리스트에서 제외(PRICE, %s)." % (round(series['close'][-1]/recently_sold_list[market]-1, 2)))
+                                            recently_sold_list.pop(market)
+
+
                                 if series is False:
                                     if CALL_TERM_APPLY:
                                         # 너무 자주 call error 발생 시 주기 확대
-                                        call_err_score = call_err_score - 1.0
+                                        call_err_score = call_err_score-1.0
                                         if call_err_score < call_err_neg_score_threshold:
                                             # 최대 0.1초까지 증가 시킬 수 있음
-                                            call_term = min(call_term * 1.1, 0.1)
+                                            call_term = min(call_term*1.1, 0.1)
                                             call_err_score = 0
                                             print("API call term extended to %s"%(round(call_term,4)))
                                     print("No data series.")
@@ -434,7 +444,10 @@ class BatchManager():
                                             db.save_signal(market=market, date=series.index[-1][:10], time=series.index[-1][-8:], signal=signal, trade_cd=trade_cd)
 
                                             if signal == 'SELL':
-                                                recently_sold_list[market] = timer()
+                                                if RE_BID_TYPE == 'TIME':
+                                                    recently_sold_list[market] = timer()
+                                                elif RE_BID_TYPE == 'PRICE':
+                                                    recently_sold_list[market] = series.tail(1)['close'][0]
 
                                             # 매매 성공
                                             if ret.status_code == 201:
