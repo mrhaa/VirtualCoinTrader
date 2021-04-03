@@ -268,7 +268,7 @@ class BatchManager():
         ############################################################################
         # 매매 시 사용 정보
         position_idx_nm = 'balance'
-        buy_amount_unit = 20000
+        buy_amount_unit = 10000.0*2
         additional_position_threshold = -0.145
 
         tm = TradeManager.TradeManager()
@@ -285,8 +285,8 @@ class BatchManager():
         if CALL_TERM_APPLY:
             call_term = 0.05
             call_err_score = 0.0
-            call_err_pos_score_threshold = 10
-            call_err_neg_score_threshold = -10
+            call_err_pos_score_threshold = 10.0
+            call_err_neg_score_threshold = -10.0
 
         ############################################################################
 
@@ -335,8 +335,9 @@ class BatchManager():
 
                                     elif RE_BID_TYPE == 'PRICE':
                                         # 최근 매도한 마켓 리스트 중 일정 수준 이상 오르지 않았으면 재매수할 수 있음
-                                        if series['close'][-1]/recently_sold_list[market]-1 < 0.02:
-                                            print(market + "은 최근 매도 리스트에서 제외(PRICE, %s)." % (round(series['close'][-1]/recently_sold_list[market]-1, 2)))
+                                        lag = 2
+                                        if series['close'][-lag]/recently_sold_list[market]-1 < 0.1:
+                                            print(market + "은 최근 매도 리스트에서 제외(PRICE, %s)." % (round(series['close'][-lag]/recently_sold_list[market]-1, 2)))
                                             recently_sold_list.pop(market)
 
 
@@ -408,8 +409,15 @@ class BatchManager():
                                         if market in balance_list:
                                             # signal이 발생하거나 매매 처리 예외 리스트에 없는 경우
                                             if market not in except_market_list:
+
+                                                # 물렸던 경우 목표 수익률 보다 낮은 수준에서 차익 실현
+                                                profit_multiple = 1.0
+                                                if float(balance['avg_price'][market])*float(balance['balance'][market]) > buy_amount_unit*2:
+                                                    profit_multiple = 1.5
+
                                                 # 목표한 수익률 달성 시 매도
-                                                expected_profit = series.tail(1)['close'][0]/float(balance['avg_price'][market])-1
+                                                expected_profit = (series.tail(1)['close'][0]/float(balance['avg_price'][market])-1)*profit_multiple
+
                                                 if expected_profit > target_profit:
                                                     # 골든 크로스 BUY 시그널 계산
                                                     signal = sm.get_golden_cross_buy_signal(series=series, series_num=series_num, short_term=sell_short_term, long_term=sell_long_term
