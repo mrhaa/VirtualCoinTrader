@@ -327,29 +327,25 @@ class BatchManager():
 
                                 # 최근 매도한 코인 재매수할 지 판단, 급등 이후 재매수를 통해 물리는 경우 방지
                                 if market in list(recently_sold_list.keys()):
-                                    print(recently_sold_list, series['close'][-price_lag])
+                                    # 최근 매도한 마켓 리스트 중 일정 수준 이상 오르지 않았으면 재매수할 수 있음
+                                    if RE_BID_TYPE == 'PRICE':
+                                        price_lag = 1
+                                        surge_rate_limit = 0.05
 
+                                        surge_rate = series['close'][-price_lag]/recently_sold_list[market]['PRICE']-1
+                                        if surge_rate < surge_rate_limit:
+                                            print(market + "은 최근 매도 리스트에서 제외(PRICE, %s pro)." % (round(surge_rate*100,2)))
+                                            recently_sold_list.pop(market)
+
+                                    # 최근 매도한 마켓 리스트 중 일정 시간이 지나면 재매수할 수 있음
+                                    time_lag = 300
                                     if RE_BID_TYPE == 'TIME':
                                         time_lag = 120
-                                        # 최근 매도한 마켓 리스트 중 일정 시간이 지나면 재매수할 수 있음
+
+                                    if market in list(recently_sold_list.keys()):
                                         if timer()-recently_sold_list[market]['TIME'] > time_lag:
                                             print(market + "은 최근 매도 리스트에서 제외(TIME, %s)."%(time_lag))
                                             recently_sold_list.pop(market)
-
-                                    elif RE_BID_TYPE == 'PRICE':
-                                        # 최근 매도한 마켓 리스트 중 일정 수준 이상 오르지 않았으면 재매수할 수 있음
-                                        price_lag = 1
-                                        surge_rate = 0.05
-                                        if series['close'][-price_lag]/recently_sold_list[market]['PRICE']-1 < surge_rate:
-                                            print(market + "은 최근 매도 리스트에서 제외(PRICE, %s)." % (round(series['close'][-price_lag]/recently_sold_list[market]['PRICE']-1, 2)))
-                                            recently_sold_list.pop(market)
-
-                                        time_lag = 300
-                                        # 최근 매도한 마켓 리스트 중 일정 시간이 지나면 재매수할 수 있음
-                                        if timer()-recently_sold_list[market]['TIME'] > time_lag:
-                                            print(market + "은 최근 매도 리스트에서 제외(TIME, %s)."%(time_lag))
-                                            recently_sold_list.pop(market)
-
 
                                 if series is False:
                                     if CALL_TERM_APPLY:
@@ -357,7 +353,7 @@ class BatchManager():
                                         call_err_score = call_err_score-1.0
                                         if call_err_score < call_err_neg_score_threshold:
                                             # 최대 0.1초까지 증가 시킬 수 있음
-                                            call_term = min(call_term*1.1, 0.1)
+                                            call_term = min(call_term*1.1,0.1)
                                             call_err_score = 0
                                             print("API call term extended to %s"%(round(call_term,4)))
                                     print("No data series.")
@@ -403,7 +399,7 @@ class BatchManager():
                                                             if market in list(recently_sold_list.keys()):
                                                                 signal = False
                                                             else:
-                                                                msg = "BUY: golden_cross of %s"%(market)
+                                                                msg = "BUY: golden_cross of %s pro"%(market)
                                                                 trade_cd = 1
                                                     else:
                                                         # 손실률이 기준 이하인 경우 추가 매수
@@ -412,7 +408,7 @@ class BatchManager():
                                                             print('추가 매수 시도:', market, signal, round(expected_loss*100,2), round(series.tail(1)['close'][0],2), round(series.tail(sell_short_term)['close'].mean(),2), round(series.tail(sell_long_term)['close'].mean(),2))
                                                             # 시장 조정 후 골든 크로스로 변경되는 경우 물타기
                                                             if signal == 'BUY':
-                                                                msg = "BUY: loss of %s is %s. buy addtional position."%(market, round(expected_loss*100,2))
+                                                                msg = "BUY: loss of %s is %s pro. buy addtional position."%(market, round(expected_loss*100,2))
                                                                 trade_cd = 2
 
                                         # 해당 코인을 보유하고 있는 경우 SELL 할 수 있음
@@ -437,7 +433,7 @@ class BatchManager():
                                                     # 골든 크로스 해지, 정배열이 없어지면 모멘텀이 사라졌다고 판단
                                                     if signal != 'BUY':
                                                         signal = 'SELL'
-                                                        msg = "SELL: target profit(%s/%s) of %s is reached."%(round(expected_profit*100,2), round(target_profit*100,2), market)
+                                                        msg = "SELL: target profit(%s pro/%s pro) of %s is reached."%(round(expected_profit*100,2), round(target_profit*100,2), market)
                                                         trade_cd = -2
                                                     else:
                                                         signal = False
@@ -447,7 +443,7 @@ class BatchManager():
 
                                                     if signal == 'SELL':
                                                         expected_profit = float(balance['avg_price'][market])/series.tail(1)['close'][0]-1
-                                                        msg = "SELL: dead_cross of %s(%s)"%(market, round(expected_profit*100,2))
+                                                        msg = "SELL: dead_cross of %s(%s pro)"%(market, round(expected_profit*100,2))
                                                         trade_cd = -1
 
                                     if TRADE_COIN:
@@ -492,6 +488,7 @@ class BatchManager():
 
             if loop_cnt % 100 == 0:
                 print("Finished %s Loop: %s seconds elapsed" % (loop_cnt, round(end_tm - start_tm, 2)))
+                print("recently_sold_list: ", recently_sold_list)
 
         ############################################################################
         db.disconnect()
