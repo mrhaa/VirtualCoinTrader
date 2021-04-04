@@ -144,7 +144,7 @@ class DBManager():
         sql = "INSERT INTO transaction (cd, date, time, signals, trade_cd, price, create_time) " \
               "VALUES ('%s', '%s', '%s', '%s', %s, %s, now())"
         sql_arg = (market, date, time, signal, trade_cd, price)
-        print(sql % sql_arg)
+        #print(sql % sql_arg)
         self.execute_query(sql, sql_arg)
 
     def get_first_point(self, market, interval_unit, interval_val):

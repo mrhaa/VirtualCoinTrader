@@ -245,7 +245,7 @@ class BatchManager():
         series_idx_nm = 'candle_date_time_kst'
         interval_unit = 'minutes'
         interval_val = '1'
-        count = 20  # 최대 200개
+        count = 100  # 최대 200개
 
         last_idx_nm1 = 'trade_date_kst'
         last_idx_nm2 = 'trade_time_kst'
@@ -255,13 +255,13 @@ class BatchManager():
         dm.set_parameters_for_series(interval_unit=interval_unit, interval_val=interval_val, count=count, series_idx_nm=series_idx_nm, last_idx_nm1=last_idx_nm1, last_idx_nm2=last_idx_nm2)
 
         ############################################################################
-        short_term = 5
+        short_term = 10
         long_term = 20
         short_term_momentum_threshold = 0.98 # 값이 작을 수록 빠르게 진입 & 빠르게 탈출
         long_term_momentum_threshold = 0.97 # 값이 작을 수록 빠르게 진입 & 빠르게 탈출
         volume_momentum_threshold = None # 1.0
 
-        sell_short_term = 3
+        sell_short_term = 5
         sell_long_term = 10
 
         sm = SignalMaker.SignalMaker()
@@ -277,7 +277,7 @@ class BatchManager():
         tm.set_api(api=api)
         tm.set_parameters(buy_amount_unit=buy_amount_unit, position_idx_nm=position_idx_nm)
 
-        target_profit = 0.045
+        target_profit = 0.035
 
         ############################################################################
         bot = Telegram.Telegram()
@@ -336,10 +336,10 @@ class BatchManager():
                                 if market in list(recently_sold_list.keys()):
                                     # 최근 매도한 마켓 리스트 중 일정 수준 이상 오르지 않았으면 재매수할 수 있음
                                     if RE_BID_TYPE == 'PRICE':
-                                        price_lag = 2
+                                        price_lag = 5
                                         surge_rate_limit = 0.05
 
-                                        surge_rate = series['close'][-price_lag]/recently_sold_list[market]['PRICE']-1
+                                        surge_rate = max(series['close'][-price_lag:])/min(series['close'][-price_lag:])-1
                                         if surge_rate < surge_rate_limit:
                                             print(market + "은 최근 매도 리스트에서 제외(PRICE, %s pro)." % (round(surge_rate*100,2)))
                                             recently_sold_list.pop(market)
@@ -394,10 +394,13 @@ class BatchManager():
                                             else:
                                                 # signal이 발생하거나 매매 처리 예외 리스트에 없는 경우
                                                 if market not in except_market_list:
-                                                    # 골든 크로스 BUY 시그널 계산
-                                                    signal = sm.get_golden_cross_buy_signal(series=series, series_num=series_num, short_term=short_term, long_term=long_term
-                                                                                            , short_term_momentum_threshold=short_term_momentum_threshold, long_term_momentum_threshold=long_term_momentum_threshold
-                                                                                            , volume_momentum_threshold=volume_momentum_threshold, direction=1)
+                                                    if 0:
+                                                        # 골든 크로스 BUY 시그널 계산
+                                                        signal = sm.get_golden_cross_buy_signal(series=series, series_num=series_num, short_term=short_term, long_term=long_term
+                                                                                                , short_term_momentum_threshold=short_term_momentum_threshold, long_term_momentum_threshold=long_term_momentum_threshold
+                                                                                                , volume_momentum_threshold=volume_momentum_threshold, direction=1)
+                                                    else:
+                                                        signal = sm.get_momentum_z_buy_signal(series=series, series_num=series_num, short_term=short_term, long_term=long_term)
 
                                                     # 해당 코인을 보유하고 있지 않은 경우 매수
                                                     if market not in balance_list:
@@ -433,14 +436,17 @@ class BatchManager():
 
                                                 if expected_profit > target_profit:
                                                     # 골든 크로스 BUY 시그널 계산
-                                                    signal = sm.get_golden_cross_buy_signal(series=series, series_num=series_num, short_term=sell_short_term, long_term=sell_long_term
-                                                                                            , short_term_momentum_threshold=short_term_momentum_threshold, long_term_momentum_threshold=long_term_momentum_threshold
-                                                                                            , volume_momentum_threshold=volume_momentum_threshold, direction=-1)
+                                                    if 0:
+                                                        signal = sm.get_golden_cross_buy_signal(series=series, series_num=series_num, short_term=sell_short_term, long_term=sell_long_term
+                                                                                                , short_term_momentum_threshold=short_term_momentum_threshold, long_term_momentum_threshold=long_term_momentum_threshold
+                                                                                                , volume_momentum_threshold=volume_momentum_threshold, direction=-1)
+                                                    else:
+                                                        signal = sm.get_momentum_z_buy_signal(series=series, series_num=series_num, short_term=sell_short_term, long_term=sell_long_term)
                                                     print('수익 실현 시도:', market, signal, round(expected_profit/profit_multiple*100,2), round(series.tail(1)['close'][0],2), round(series.tail(sell_short_term)['close'].mean(),2), round(series.tail(sell_long_term)['close'].mean(),2))
                                                     # 골든 크로스 해지, 정배열이 없어지면 모멘텀이 사라졌다고 판단
                                                     if signal != 'BUY':
                                                         signal = 'SELL'
-                                                        msg = "SELL: target profit(%s pro/%s pro) of %s is reached."%(round(expected_profit*100,2), round(target_profit*100,2), market)
+                                                        msg = "SELL: target profit(%s / %s pro) of %s is reached."%(round(expected_profit/profit_multiple*100,2), round(target_profit*100,2), market)
                                                         trade_cd = -2
                                                     else:
                                                         signal = False
