@@ -460,6 +460,14 @@ class BatchManager():
                                                         msg = "SELL: dead_cross of %s(%s pro)"%(market, round(expected_profit*100,2))
                                                         trade_cd = -1
 
+                                        if 1:
+                                            # 특정 가격 보다 작은 종목은 보유하지 않음
+                                            if series['close'][-1] < 300.0:
+                                                if market in balance_list:
+                                                    signal = 'SELL'
+                                                else:
+                                                    signal = False
+
                                     if TRADE_COIN:
                                         if signal == 'BUY' or signal == 'SELL':
                                             tm.set_balance(balance)
