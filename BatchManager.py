@@ -463,10 +463,7 @@ class BatchManager():
                                         if 1:
                                             # 특정 가격 보다 작은 종목은 보유하지 않음
                                             if series['close'][-1] < 300.0:
-                                                if market in balance_list:
-                                                    signal = 'SELL'
-                                                else:
-                                                    signal = False
+                                                signal = False
 
                                     if TRADE_COIN:
                                         if signal == 'BUY' or signal == 'SELL':
