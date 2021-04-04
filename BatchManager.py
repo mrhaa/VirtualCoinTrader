@@ -3,6 +3,7 @@
 import time
 import datetime
 from timeit import default_timer as timer
+import numpy as np
 
 import sys
 import multiprocessing as mp
@@ -326,11 +327,16 @@ class BatchManager():
                                 # 최신 데이터에 시장가 적
                                 series['close'][-1] = last['close'][0]
 
+                                if 0:
+                                    Y = list(series['close'][-5:].values)
+                                    X = [x for x in range(5)]
+                                    print(np.polyfit(X, Y, 1)[0])
+
                                 # 최근 매도한 코인 재매수할 지 판단, 급등 이후 재매수를 통해 물리는 경우 방지
                                 if market in list(recently_sold_list.keys()):
                                     # 최근 매도한 마켓 리스트 중 일정 수준 이상 오르지 않았으면 재매수할 수 있음
                                     if RE_BID_TYPE == 'PRICE':
-                                        price_lag = 1
+                                        price_lag = 2
                                         surge_rate_limit = 0.05
 
                                         surge_rate = series['close'][-price_lag]/recently_sold_list[market]['PRICE']-1
@@ -456,7 +462,7 @@ class BatchManager():
                                             tm.update_balance(balance=balance)
 
                                             # 매매 내역을 DB에 저장(디버그를 위함)
-                                            db.save_signal(market=market, date=series.index[-1][:10], time=series.index[-1][-8:], signal=signal, trade_cd=trade_cd)
+                                            db.save_signal(market=market, date=series.index[-1][:10], time=series.index[-1][-8:], signal=signal, trade_cd=trade_cd, price=series.tail(1)['close'][0])
 
                                             if signal == 'SELL':
                                                 recently_sold_list[market] = {'TIME':timer(), 'PRICE':series.tail(1)['close'][0]}

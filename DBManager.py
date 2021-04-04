@@ -139,11 +139,12 @@ class DBManager():
             sql_arg = (cd, interval_unit, interval_val, date, time, open, close, low, high, volume, open, close, low, high, volume)
             self.execute_query(sql, sql_arg)
 
-    def save_signal(self, market, date, time, signal, trade_cd):
+    def save_signal(self, market, date, time, signal, trade_cd, price):
 
-        sql = "INSERT INTO transaction (cd, date, time, signals, trade_cd, create_time) " \
-              "VALUES ('%s', '%s', '%s', '%s', %s, now())"
-        sql_arg = (market, date, time, signal, trade_cd)
+        sql = "INSERT INTO transaction (cd, date, time, signals, trade_cd, price, create_time) " \
+              "VALUES ('%s', '%s', '%s', '%s', %s, %s, now())"
+        sql_arg = (market, date, time, signal, trade_cd, price)
+        print(sql % sql_arg)
         self.execute_query(sql, sql_arg)
 
     def get_first_point(self, market, interval_unit, interval_val):
@@ -153,7 +154,6 @@ class DBManager():
               "   AND interval_val = '%s'" \
               " ORDER BY date, time" \
               " LIMIT 1" %(market, interval_unit, interval_val)
-
         #print(sql)
         ret = self.select_query(sql, columns=('date', 'time'))
 
@@ -167,7 +167,6 @@ class DBManager():
 
     def get_market_list(self):
         sql = "SELECT DISTINCT cd FROM item"
-
         # print(sql)
         ret = self.select_query(sql, columns=('cd',))
 
@@ -184,7 +183,6 @@ class DBManager():
               "   AND interval_unit = '%s'" \
               "   AND interval_val = '%s'" \
               " ORDER BY date, time"%(market, interval_unit, interval_val)
-
         # print(sql)
         ret = self.select_query(sql, columns=('cd', 'interval_unit', 'interval_val', 'date', 'time', 'open', 'close', 'low', 'high', 'volume'))
 
