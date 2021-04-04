@@ -44,5 +44,6 @@ class Telegram():
     def send_message(self, msg='Hello'):
 
         self.bot.sendMessage(chat_id=self.chat_id, text=msg)
+        print(msg)
 
 
