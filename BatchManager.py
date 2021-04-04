@@ -428,12 +428,11 @@ class BatchManager():
 
                                                 # 물렸던 경우 목표 수익률 보다 낮은 수준에서 차익 실현
                                                 profit_multiple = 1.0
-                                                if series.tail(1)['close'][0]*float(balance['balance'][market]) > buy_amount_unit*buy_amount_multiple:
+                                                if series['close'][-1]*float(balance['balance'][market]) > buy_amount_unit*buy_amount_multiple:
                                                     profit_multiple = 1.5
 
                                                 # 목표한 수익률 달성 시 매도
-                                                expected_profit = (series.tail(1)['close'][0]/float(balance['avg_price'][market])-1)*profit_multiple
-
+                                                expected_profit = (series['close'][-1]/float(balance['avg_price'][market])-1)*profit_multiple
                                                 if expected_profit > target_profit:
                                                     # 골든 크로스 BUY 시그널 계산
                                                     if 0:
@@ -442,11 +441,11 @@ class BatchManager():
                                                                                                 , volume_momentum_threshold=volume_momentum_threshold, direction=-1)
                                                     else:
                                                         signal = sm.get_momentum_z_buy_signal(series=series, series_num=series_num, short_term=sell_short_term, long_term=sell_long_term)
-                                                    print('수익 실현 시도:', market, signal, round(expected_profit/profit_multiple*100,2), round(series.tail(1)['close'][0],2), round(series.tail(sell_short_term)['close'].mean(),2), round(series.tail(sell_long_term)['close'].mean(),2))
+                                                    print('수익 실현 시도:', market, signal, round(expected_profit/profit_multiple*100,2), round(series['close'][-1],2), round(series['close'][-sell_short_term:].mean(),2), round(series['close'][-sell_long_term:].mean(),2))
                                                     # 골든 크로스 해지, 정배열이 없어지면 모멘텀이 사라졌다고 판단
                                                     if signal != 'BUY':
                                                         signal = 'SELL'
-                                                        msg = "SELL: target profit(%s / %s pro) of %s is reached."%(round(expected_profit/profit_multiple*100,2), round(target_profit*100,2), market)
+                                                        msg = "SELL: target profit(%s/%s pro, %s won) of %s is reached."%(round(expected_profit/profit_multiple*100,2), round(target_profit*100,2), round(float(balance['balance'][market])*series['close'][-1]), market)
                                                         trade_cd = -2
                                                     else:
                                                         signal = False
@@ -455,7 +454,7 @@ class BatchManager():
                                                     signal = sm.get_dead_cross_sell_signal(series=series, series_num=series_num, short_term=sell_short_term, long_term=sell_long_term)
 
                                                     if signal == 'SELL':
-                                                        expected_profit = float(balance['avg_price'][market])/series.tail(1)['close'][0]-1
+                                                        expected_profit = float(balance['avg_price'][market])/series['close'][-1]-1
                                                         msg = "SELL: dead_cross of %s(%s pro)"%(market, round(expected_profit*100,2))
                                                         trade_cd = -1
 
@@ -468,10 +467,10 @@ class BatchManager():
                                             tm.update_balance(balance=balance)
 
                                             # 매매 내역을 DB에 저장(디버그를 위함)
-                                            db.save_signal(market=market, date=series.index[-1][:10], time=series.index[-1][-8:], signal=signal, trade_cd=trade_cd, price=series.tail(1)['close'][0])
+                                            db.save_signal(market=market, date=series.index[-1][:10], time=series.index[-1][-8:], signal=signal, trade_cd=trade_cd, price=series['close'][-1])
 
                                             if signal == 'SELL':
-                                                recently_sold_list[market] = {'TIME':timer(), 'PRICE':series.tail(1)['close'][0]}
+                                                recently_sold_list[market] = {'TIME':timer(), 'PRICE':series['close'][-1]}
 
                                             # 매매 성공
                                             if ret.status_code == 201:
