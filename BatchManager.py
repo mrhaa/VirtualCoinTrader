@@ -413,9 +413,10 @@ class BatchManager():
                                                                 trade_cd = 1
                                                     else:
                                                         # 손실률이 기준 이하인 경우 추가 매수
-                                                        expected_loss = series.tail(1)['close'][0]/float(balance['avg_price'][market])-1
+                                                        expected_loss = series['close'][-1]/float(balance['avg_price'][market])-1
                                                         if expected_loss < additional_position_threshold:
-                                                            print('추가 매수 시도:', market, signal, round(expected_loss*100,2), round(series.tail(1)['close'][0],2), round(series.tail(sell_short_term)['close'].mean(),2), round(series.tail(sell_long_term)['close'].mean(),2))
+
+                                                            print('추가 매수 시도:', market, signal, round(expected_loss*100,2), round(series['close'][-1],2), round(series['close'][-short_term:].mean(),2), round(series['close'][-long_term:].mean(),2))
                                                             # 시장 조정 후 골든 크로스로 변경되는 경우 물타기
                                                             if signal == 'BUY':
                                                                 msg = "BUY: loss of %s is %s pro. buy addtional position."%(market, round(expected_loss*100,2))
@@ -442,6 +443,7 @@ class BatchManager():
                                                     else:
                                                         signal = sm.get_momentum_z_buy_signal(series=series, series_num=series_num, short_term=sell_short_term, long_term=sell_long_term)
                                                     print('수익 실현 시도:', market, signal, round(expected_profit/profit_multiple*100,2), round(series['close'][-1],2), round(series['close'][-sell_short_term:].mean(),2), round(series['close'][-sell_long_term:].mean(),2))
+
                                                     # 골든 크로스 해지, 정배열이 없어지면 모멘텀이 사라졌다고 판단
                                                     if signal != 'BUY':
                                                         signal = 'SELL'
