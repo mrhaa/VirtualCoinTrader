@@ -90,8 +90,9 @@ class SignalMaker:    # 클래스
         short_price_momentum = rolling_short_z['close'][-1]
         long_price_momentum = rolling_long_z['close'][-1]
 
-        #print('momentum_z_buy_signal: ', series['market'][0], short_price_momentum, long_price_momentum)
+
         if short_price_momentum> base and short_price_momentum > long_price_momentum:
+            #print('momentum_z_buy_signal: ', series['market'][0], short_price_momentum, long_price_momentum)
             return 'BUY'
         else:
             return False

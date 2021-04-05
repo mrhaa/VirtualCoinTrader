@@ -46,6 +46,9 @@ class TradeManager():
             # 시장 조정으로 추가 매수
             elif trade_cd == 2:
                 buy_amount = float(self.balance['avg_price'][market])*float(self.balance['balance'][market])
+            # 단위 금액 조정으로 추가 매수
+            elif trade_cd == 3:
+                buy_amount = 10000.0
             ret = self.api.order(market=market, side='bid', volume=None, price=str(buy_amount), ord_type='price')
             #print(market + " 매수 성공") if ret.status_code == 201 else False
 

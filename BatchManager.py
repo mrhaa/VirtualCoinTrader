@@ -269,9 +269,9 @@ class BatchManager():
         ############################################################################
         # 매매 시 사용 정보
         position_idx_nm = 'balance'
-        buy_amount_multiple = 2
+        buy_amount_multiple = 3
         buy_amount_unit = 10000.0*buy_amount_multiple
-        additional_position_threshold = -0.145
+        additional_position_threshold = -0.095
 
         tm = TradeManager.TradeManager()
         tm.set_api(api=api)
@@ -415,12 +415,17 @@ class BatchManager():
                                                         # 손실률이 기준 이하인 경우 추가 매수
                                                         expected_loss = series['close'][-1]/float(balance['avg_price'][market])-1
                                                         if expected_loss < additional_position_threshold:
-
-                                                            print('추가 매수 시도:', market, signal, round(expected_loss*100,2), round(series['close'][-1],2), round(series['close'][-short_term:].mean(),2), round(series['close'][-long_term:].mean(),2))
+                                                            #print('추가 매수 시도:', market, signal, round(expected_loss*100,2), round(series['close'][-1],2), round(series['close'][-short_term:].mean(),2), round(series['close'][-long_term:].mean(),2))
                                                             # 시장 조정 후 골든 크로스로 변경되는 경우 물타기
                                                             if signal == 'BUY':
                                                                 msg = "BUY: loss of %s is %s pro. buy addtional position."%(market, round(expected_loss*100,2))
                                                                 trade_cd = 2
+
+                                                        # 단위 금액보다 적은 금액이 매수된 경우 추가 매수
+                                                        if round(buy_amount_unit-series['close'][-1]*float(balance['balance'][market]),-4)/10000.0 > 0:
+                                                            if signal == 'BUY':
+                                                                msg = "BUY: less of %s is %s won. buy addtional position."%(market, round(buy_amount_unit-series['close'][-1]*float(balance['balance'][market]),-4))
+                                                                trade_cd = 3
 
                                         # 해당 코인을 보유하고 있는 경우 SELL 할 수 있음
                                         if market in balance_list:
@@ -429,7 +434,7 @@ class BatchManager():
 
                                                 # 물렸던 경우 목표 수익률 보다 낮은 수준에서 차익 실현
                                                 profit_multiple = 1.0
-                                                if series['close'][-1]*float(balance['balance'][market]) > buy_amount_unit*buy_amount_multiple:
+                                                if series['close'][-1]*float(balance['balance'][market]) > buy_amount_unit*2:
                                                     profit_multiple = 1.5
 
                                                 # 목표한 수익률 달성 시 매도
@@ -442,7 +447,7 @@ class BatchManager():
                                                                                                 , volume_momentum_threshold=volume_momentum_threshold, direction=-1)
                                                     else:
                                                         signal = sm.get_momentum_z_buy_signal(series=series, series_num=series_num, short_term=sell_short_term, long_term=sell_long_term)
-                                                    print('수익 실현 시도:', market, signal, round(expected_profit/profit_multiple*100,2), round(series['close'][-1],2), round(series['close'][-sell_short_term:].mean(),2), round(series['close'][-sell_long_term:].mean(),2))
+                                                    #print('수익 실현 시도:', market, signal, round(expected_profit/profit_multiple*100,2), round(series['close'][-1],2), round(series['close'][-sell_short_term:].mean(),2), round(series['close'][-sell_long_term:].mean(),2))
 
                                                     # 골든 크로스 해지, 정배열이 없어지면 모멘텀이 사라졌다고 판단
                                                     if signal != 'BUY':
