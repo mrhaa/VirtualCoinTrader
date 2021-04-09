@@ -207,7 +207,7 @@ class BatchManager():
 
     def loop_procedures(self, READ_BALANCE=True, READ_MARKET=True, READ_DATA=True, ANALYZE_DATA=True, TRADE_COIN=False
                         , EMPTY_ALL_POSITION=False, CALL_TERM_APPLY=False, SELL_SIGNAL=False, RE_BID_TYPE='PRICE'
-                        , loop_num=float('inf')):
+                        , TEST_MARKET=None, loop_num=float('inf')):
 
         ############################################################################
         db = DBManager.DBManager()
@@ -310,6 +310,15 @@ class BatchManager():
                     # 거래가 가능한 종목들을 순차적으로 돌아가며 처리
                     for market in markets.index:
 
+                        # 특정 코인으로 테스트하기 위함
+                        if TEST_MARKET is None:
+                            pass
+                        else:
+                            if market == TEST_MARKET:
+                                pass
+                            else:
+                                continue
+
                         # 매매 성공 시 Telegram 메세지
                         msg = ""
                         trade_cd = 0
@@ -383,6 +392,7 @@ class BatchManager():
                                     if EMPTY_ALL_POSITION:
                                         if market in balance_list:
                                             signal = 'SELL'
+                                            msg = 'EMPTY_ALL_POSITION %s'%(market)
                                     else:
                                         # 현금이 최소 단위의 금액 이상 있는 경우 BUY 할 수 있음
                                         if float(balance[position_idx_nm][currency+'-'+currency]) > buy_amount_unit:
