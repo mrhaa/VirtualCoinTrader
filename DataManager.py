@@ -58,6 +58,15 @@ class DataManager():
 
         return (self.series, self.series_num)
 
+    def append_new_data(self, market, data=None):
+
+        if data is not None:
+            self.series = self.series.append(data)
+            self.series_num = len(self.series.index)
+
+        return (self.series, self.series_num)
+
+
     def get_last_info(self, market, to=None):
 
         self.last = self.api.get_ticker(market)
