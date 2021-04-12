@@ -31,7 +31,9 @@ class MarketManager():
 
         self.markets = self.api.look_up_all_coins()
         if self.markets is not False:
-            self.markets = self.markets.loc[[True if self.currency in market else False for market in self.markets[self.market_idx_nm]]]
+            #self.btc_markets = self.markets.loc[[True if 'BTC-' in market else False for market in self.markets[self.market_idx_nm]]]
+            #self.usdt_markets = self.markets.loc[[True if 'USDT-' in market else False for market in self.markets[self.market_idx_nm]]]
+            self.markets = self.markets.loc[[True if self.currency+'-' in market else False for market in self.markets[self.market_idx_nm]]]
             self.markets.rename(columns={'korean_name': 'kr_nm', 'english_name': 'us_nm'}, inplace=True)
             self.markets.set_index(self.market_idx_nm, inplace=True)
 
