@@ -9,7 +9,6 @@ import uuid
 import hashlib
 from urllib.parse import urlencode
 import pandas as pd
-import pickle
 
 base_dir = (os.path.abspath(os.path.join(os.path.dirname(__file__), '.')))
 if platform.system() == 'Windows':
