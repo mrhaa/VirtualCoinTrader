@@ -4,6 +4,7 @@ import time
 import datetime
 from timeit import default_timer as timer
 import numpy as np
+import pandas as pd
 
 import sys
 import multiprocessing as mp
@@ -147,6 +148,16 @@ class BatchManager():
         currency = 'KRW'
 
         ############################################################################
+        # balance 정보에서 인덱스로 사용할 컬럼명
+        balance_idx_nm1 = 'unit_currency'
+        balance_idx_nm2 = 'currency'
+        max_balance_num = 200
+
+        bm = BalanceManager.BalanceManager(self.PRINT_BALANCE_STATUS_LOG)
+        bm.set_api(api=api)
+        bm.set_parameters(currency=currency, balance_idx_nm1=balance_idx_nm1, balance_idx_nm2=balance_idx_nm2, max_balance_num=max_balance_num)
+
+        ############################################################################
         # 거래 가능한 coin 정보에서 인덱스로 사용할 컬럼명
         market_idx_nm = 'market'
 
@@ -158,49 +169,66 @@ class BatchManager():
         # series 정보에서 인덱스로 사용할 컬럼명
         series_idx_nm = 'candle_date_time_kst'
         interval_unit = 'minutes'
-        interval_val = '1'
+        interval_val = '10'
         count = 200  # 최대 200개
+
+        last_idx_nm1 = 'trade_date_kst'
+        last_idx_nm2 = 'trade_time_kst'
 
         dm = DataManager.DataManager(self.PRINT_DATA_LOG)
         dm.set_api(api=api)
-        dm.set_parameters_for_series(interval_unit=interval_unit, interval_val=interval_val, count=count, series_idx_nm=series_idx_nm)
+        dm.set_parameters_for_series(interval_unit=interval_unit, interval_val=interval_val, count=count, series_idx_nm=series_idx_nm, last_idx_nm1=last_idx_nm1, last_idx_nm2=last_idx_nm2)
 
         ############################################################################
-        if READ_MARKET:
 
-            (markets, markets_num, markets_list) = mm.get_markets_info()
-            db.update_markets(markets, ('kr_nm', 'us_nm'))
 
-            loop_cnt = 0
-            while loop_cnt < loop_num:
+        loop_cnt = 0
+        while loop_cnt < loop_num:
 
-                start_tm = timer()
+            start_tm = timer()
+
+            if READ_MARKET:
+
+                (markets, markets_num, markets_list) = mm.get_markets_info()
 
                 # 거래가 가능한 종목들을 순차적으로 돌아가며 처리
                 for market in markets.index:
-
                     try:
                         if READ_DATA:
-                            # 데이터의 시점을 정하고 데이터 요청하는 로직은 동작하지 않는 것으로 테스트 됨
-                            if 0:
-                                first_point = db.get_first_point(market=market, interval_unit=interval_unit, interval_val=interval_val)
-                                (series, series_num) = dm.get_series_info(market=market, to=first_point)
-                            else:
-                                (series, series_num) = dm.get_series_info(market)
-                            db.update_series(market, interval_unit, interval_val, series, ('open', 'close', 'low', 'high', 'volume'))
 
+                            # 시장가 취득
+                            last = dm.get_last_info(market=market)
+                            if last is False:
+                                print("No last data.")
+                                continue
+
+                            (series, series_num) = dm.get_series_info(market=market)
+
+                            new_idx = last['trade_date'][0][:4]+'-'+last['trade_date'][0][4:6]+'-'+last['trade_date'][0][-2:]+'T'+last['trade_time_kst'][0][:2]+':'+last['trade_time_kst'][0][2:4]+':'+last['trade_time_kst'][0][-2:]
+                            if datetime.datetime.strptime(new_idx, "%Y-%m-%dT%H:%M:%S") > datetime.datetime.strptime(series.index[-1], "%Y-%m-%dT%H:%M:%S"):
+                                new_low = pd.DataFrame({'market': market, 'close': last['close'][0]}, columns=series.columns, index=[new_idx])
+                                (series, series_num) = dm.append_new_data(market=market, data=new_low)
+
+                            if series is False:
+                                print("No data series.")
+                                continue
+                            else:
+                                db.update_series(market=market, interval_unit=interval_unit, interval_val=interval_val, seq=loop_cnt, series=series, columns=('open', 'close', 'low', 'high', 'volume'))
+
+                    # 일시적으로 거래가 정지된 마켓은 예외 대상으로 등록
+                    except UnboundLocalError:
+                        #except_market_list.append(market)
+                        pass
                     except Exception as x:
                         if self.PROCEDURE_ERR_LOG:
                             print(market, ": ", x.__class__.__name__)
 
-                end_tm = timer()
-                elapsed_time = end_tm-start_tm
-                sleep_time = int(count*0.9*60.0-elapsed_time)
-                # 1 Cycle Finished
-                loop_cnt += 1
-                print("Finished %s's %s Loop: %s seconds elapsed & sleep %s seconds"%(market, loop_cnt, round(elapsed_time,2), sleep_time))
+            end_tm = timer()
+            # 1 Cycle Finished
+            loop_cnt += 1
 
-                time.sleep(sleep_time)
+            if loop_cnt % 100 == 0:
+                print("Finished %s Loop: %s seconds elapsed"%(loop_cnt, round(end_tm-start_tm,2)))
 
         ############################################################################
         db.disconnect()
@@ -244,8 +272,8 @@ class BatchManager():
         # series 정보에서 인덱스로 사용할 컬럼명
         series_idx_nm = 'candle_date_time_kst'
         interval_unit = 'minutes'
-        interval_val = '1'
-        count = 100  # 최대 200개
+        interval_val = '10'
+        count = 200  # 최대 200개
 
         last_idx_nm1 = 'trade_date_kst'
         last_idx_nm2 = 'trade_time_kst'
@@ -255,8 +283,8 @@ class BatchManager():
         dm.set_parameters_for_series(interval_unit=interval_unit, interval_val=interval_val, count=count, series_idx_nm=series_idx_nm, last_idx_nm1=last_idx_nm1, last_idx_nm2=last_idx_nm2)
 
         ############################################################################
-        short_term = 10
-        long_term = 20
+        short_term = 5
+        long_term = 7
         short_term_momentum_threshold = 0.98 # 값이 작을 수록 빠르게 진입 & 빠르게 탈출
         long_term_momentum_threshold = 0.97 # 값이 작을 수록 빠르게 진입 & 빠르게 탈출
         volume_momentum_threshold = None # 1.0
@@ -269,15 +297,15 @@ class BatchManager():
         ############################################################################
         # 매매 시 사용 정보
         position_idx_nm = 'balance'
-        buy_amount_multiple = 3
+        buy_amount_multiple = 5
         buy_amount_unit = 10000.0*buy_amount_multiple
-        additional_position_threshold = -0.095
+        additional_position_threshold = -0.145
 
         tm = TradeManager.TradeManager()
         tm.set_api(api=api)
         tm.set_parameters(buy_amount_unit=buy_amount_unit, position_idx_nm=position_idx_nm)
 
-        target_profit = 0.035
+        target_profit = 0.039
 
         ############################################################################
         bot = Telegram.Telegram()
@@ -291,6 +319,21 @@ class BatchManager():
             call_err_neg_score_threshold = -10.0
 
         ############################################################################
+        if 0:
+            playable_market_list = {}
+            (markets, markets_num, markets_list) = mm.get_markets_info()
+            for market in markets.index:
+                (series, series_num) = dm.get_series_info(market=market)
+                rolling_short = series.rolling(window=5)
+                rolling_short_mean = rolling_short.mean().fillna(0)
+                rolling_short_std = rolling_short.std().fillna(0)
+                rolling_short_z = (series-rolling_short_mean)/rolling_short_std
+                #print(market, rolling_short_z['close'].tail(20).std())
+                playable_market_list[market] = rolling_short_z['close'].tail(20).std()
+            playable_market_list = sorted(playable_market_list.items(), key=lambda item:item[1])
+
+        ############################################################################
+
 
         except_market_list = []
         recently_sold_list = {}
@@ -333,8 +376,14 @@ class BatchManager():
                                     continue
 
                                 (series, series_num) = dm.get_series_info(market=market)
-                                # 최신 데이터에 시장가 적
-                                series['close'][-1] = last['close'][0]
+                                # 최신 데이터에 시장가 적용
+                                if 0:
+                                    series['close'][-1] = last['close'][0]
+                                else:
+                                    new_idx = last['trade_date'][0][:4]+'-'+last['trade_date'][0][4:6]+'-'+last['trade_date'][0][-2:]+'T'+last['trade_time_kst'][0][:2]+':'+last['trade_time_kst'][0][2:4]+':'+last['trade_time_kst'][0][-2:]
+                                    if datetime.datetime.strptime(new_idx, "%Y-%m-%dT%H:%M:%S") > datetime.datetime.strptime(series.index[-1], "%Y-%m-%dT%H:%M:%S"):
+                                        new_low = pd.DataFrame({'market': market, 'close': last['close'][0]}, columns=series.columns, index=[new_idx])
+                                        (series, series_num) = dm.append_new_data(market=market, data=new_low)
 
                                 if 0:
                                     Y = list(series['close'][-5:].values)
@@ -345,10 +394,11 @@ class BatchManager():
                                 if market in list(recently_sold_list.keys()):
                                     # 최근 매도한 마켓 리스트 중 일정 수준 이상 오르지 않았으면 재매수할 수 있음
                                     if RE_BID_TYPE == 'PRICE':
+
                                         price_lag = 5
                                         surge_rate_limit = 0.05
-
                                         surge_rate = max(series['close'][-price_lag:])/min(series['close'][-price_lag:])-1
+
                                         if surge_rate < surge_rate_limit:
                                             print(market + "은 최근 매도 리스트에서 제외(PRICE, %s pro)." % (round(surge_rate*100,2)))
                                             recently_sold_list.pop(market)
@@ -410,7 +460,9 @@ class BatchManager():
                                                                                                 , short_term_momentum_threshold=short_term_momentum_threshold, long_term_momentum_threshold=long_term_momentum_threshold
                                                                                                 , volume_momentum_threshold=volume_momentum_threshold, direction=1)
                                                     else:
-                                                        signal = sm.get_momentum_z_buy_signal(series=series, series_num=series_num, short_term=short_term, long_term=long_term)
+                                                        signal = sm.get_momentum_z_buy_signal(series=series, series_num=series_num
+                                                                                              , short_term=short_term, long_term=long_term
+                                                                                              , base=-0.1)
 
                                                     # 해당 코인을 보유하고 있지 않은 경우 매수
                                                     if market not in balance_list:
@@ -432,7 +484,7 @@ class BatchManager():
                                                                 trade_cd = 2
 
                                                         # 단위 금액보다 적은 금액이 매수된 경우 추가 매수
-                                                        if round(buy_amount_unit-series['close'][-1]*float(balance['balance'][market]),-4)/10000.0 > 0:
+                                                        if round(buy_amount_unit-float(balance['avg_price'][market])*float(balance['balance'][market]),-4)/10000.0 > 0:
                                                             if signal == 'BUY':
                                                                 msg = "BUY: less of %s is %s won. buy addtional position."%(market, round(buy_amount_unit-series['close'][-1]*float(balance['balance'][market]),-4))
                                                                 trade_cd = 3
@@ -441,7 +493,6 @@ class BatchManager():
                                         if market in balance_list:
                                             # signal이 발생하거나 매매 처리 예외 리스트에 없는 경우
                                             if market not in except_market_list:
-
                                                 # 물렸던 경우 목표 수익률 보다 낮은 수준에서 차익 실현
                                                 profit_multiple = 1.0
                                                 if series['close'][-1]*float(balance['balance'][market]) > buy_amount_unit*2:
@@ -456,7 +507,9 @@ class BatchManager():
                                                                                                 , short_term_momentum_threshold=short_term_momentum_threshold, long_term_momentum_threshold=long_term_momentum_threshold
                                                                                                 , volume_momentum_threshold=volume_momentum_threshold, direction=-1)
                                                     else:
-                                                        signal = sm.get_momentum_z_buy_signal(series=series, series_num=series_num, short_term=sell_short_term, long_term=sell_long_term)
+                                                        signal = sm.get_momentum_z_buy_signal(series=series, series_num=series_num
+                                                                                              , short_term=sell_short_term, long_term=sell_long_term
+                                                                                              , base=-0.1)
                                                     #print('수익 실현 시도:', market, signal, round(expected_profit/profit_multiple*100,2), round(series['close'][-1],2), round(series['close'][-sell_short_term:].mean(),2), round(series['close'][-sell_long_term:].mean(),2))
 
                                                     # 골든 크로스 해지, 정배열이 없어지면 모멘텀이 사라졌다고 판단
