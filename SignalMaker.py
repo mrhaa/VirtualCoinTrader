@@ -1,7 +1,5 @@
 #_*_ coding: utf-8 _*_
 
-import pandas as pd
-
 class SignalMaker:    # 클래스
     def __init__(self):
         print("Generate SignalMaker.")
@@ -89,10 +87,14 @@ class SignalMaker:    # 클래스
 
         short_price_momentum = rolling_short_z['close'][-1]
         long_price_momentum = rolling_long_z['close'][-1]
+        short_price_momentum_prev = rolling_short_z['close'][-2]
+        long_price_momentum_prev = rolling_long_z['close'][-2]
 
-
-        if short_price_momentum> base and short_price_momentum > long_price_momentum:
-            #print('momentum_z_buy_signal: ', series['market'][0], short_price_momentum, long_price_momentum)
+        #print('momentum_z_buy_signal: ', series['market'][0], short_price_momentum, long_price_momentum)
+        #print('short_z: ', series['market'][0], rolling_short_z['close'][-5:])
+        #print('long_z: ', series['market'][0], rolling_long_z['close'][-5:])
+        #print('long_z: ', series['market'][0], short_price_momentum, long_price_momentum, (short_price_momentum-long_price_momentum), (short_price_momentum-short_price_momentum_prev))
+        if short_price_momentum > base and short_price_momentum > long_price_momentum and short_price_momentum > short_price_momentum_prev:
             return 'BUY'
         else:
             return False
