@@ -1,7 +1,6 @@
 #_*_ coding: utf-8 _*_
 
 import BatchManager
-import pyupbit
 
 if __name__ == '__main__':
     # 로직별 프린트가 필요한 영역 설정
