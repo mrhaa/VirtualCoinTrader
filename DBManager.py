@@ -120,12 +120,9 @@ class DBManager():
             sql_arg = (cd, nm_kr, nm_us, nm_kr, nm_us)
             self.execute_query(sql, sql_arg)
 
-    def update_series(self, market, interval_unit, interval_val, seq, series, columns):
+    def update_prices(self, market, interval_unit, interval_val, table_nm, seq, series, columns):
 
-        seq = seq
         cd = market
-        interval_unit = interval_unit
-        interval_val = interval_val
 
         for row in series.iterrows():
             date = row[0][:10]
@@ -136,10 +133,17 @@ class DBManager():
             high = row[1][columns[3]]
             volume = row[1][columns[4]]
 
-            sql = "INSERT INTO price (seq, cd, interval_unit, interval_val, date, time, open, close, low, high, volume, create_time, update_time) " \
-                  "VALUES (%s, '%s', '%s', '%s', '%s', '%s', %s, %s, %s, %s, %s, now(), now()) " \
-                  "ON DUPLICATE KEY UPDATE open = %s, close = %s, low = %s, high = %s, volume = %s, update_time = now()"
-            sql_arg = (seq, cd, interval_unit, interval_val, date, time, open, close, low, high, volume, open, close, low, high, volume)
+            if table_nm == 'price_spot':
+                sql = "INSERT INTO %s (seq, cd, interval_unit, interval_val, date, time, open, close, low, high, volume, create_time, update_time) " \
+                      "VALUES (%s, '%s', '%s', '%s', '%s', '%s', %s, %s, %s, %s, %s, now(), now()) " \
+                      "ON DUPLICATE KEY UPDATE open = %s, close = %s, low = %s, high = %s, volume = %s, update_time = now()"
+                sql_arg = (table_nm, seq, cd, interval_unit, interval_val, date, time, open, close, low, high, volume, open, close, low, high, volume)
+
+            elif table_nm == 'price_hist':
+                sql = "INSERT INTO %s (cd, interval_unit, interval_val, date, time, open, close, low, high, volume, create_time, update_time) " \
+                      "VALUES ('%s', '%s', '%s', '%s', '%s', %s, %s, %s, %s, %s, now(), now()) " \
+                      "ON DUPLICATE KEY UPDATE open = %s, close = %s, low = %s, high = %s, volume = %s, update_time = now()"
+                sql_arg = (table_nm, cd, interval_unit, interval_val, date, time, open, close, low, high, volume, open, close, low, high, volume)
 
             self.execute_query(sql, sql_arg)
 

@@ -170,7 +170,7 @@ class BatchManager():
         series_idx_nm = 'candle_date_time_kst'
         interval_unit = 'minutes'
         interval_val = '10'
-        count = 200  # 최대 200개
+        count = 10
 
         last_idx_nm1 = 'trade_date_kst'
         last_idx_nm2 = 'trade_time_kst'
@@ -205,15 +205,17 @@ class BatchManager():
                             (series, series_num) = dm.get_series_info(market=market)
 
                             new_idx = last['trade_date'][0][:4]+'-'+last['trade_date'][0][4:6]+'-'+last['trade_date'][0][-2:]+'T'+last['trade_time_kst'][0][:2]+':'+last['trade_time_kst'][0][2:4]+':'+last['trade_time_kst'][0][-2:]
-                            if datetime.datetime.strptime(new_idx, "%Y-%m-%dT%H:%M:%S") > datetime.datetime.strptime(series.index[-1], "%Y-%m-%dT%H:%M:%S"):
-                                new_low = pd.DataFrame({'market': market, 'close': last['close'][0]}, columns=series.columns, index=[new_idx])
-                                (series, series_num) = dm.append_new_data(market=market, data=new_low)
+                            new_low = pd.DataFrame({'market': market, 'open': last['open'][0], 'close': last['close'][0], 'low': last['low'][0], 'high': last['high'][0], 'volume': last['trade_volume'][0]}, columns=series.columns, index=[new_idx])
 
                             if series is False:
                                 print("No data series.")
                                 continue
                             else:
-                                db.update_series(market=market, interval_unit=interval_unit, interval_val=interval_val, seq=loop_cnt, series=series, columns=('open', 'close', 'low', 'high', 'volume'))
+                                db.update_prices(market=market, interval_unit=interval_unit, interval_val=interval_val, table_nm='price_spot', seq=loop_cnt, series=new_low, columns=('open', 'close', 'low', 'high', 'volume'))
+
+                                if loop_cnt % 100 == 0:
+                                    db.update_prices(market=market, interval_unit=interval_unit, interval_val=interval_val, table_nm='price_hist', seq=loop_cnt, series=series, columns=('open', 'close', 'low', 'high', 'volume'))
+
 
                     # 일시적으로 거래가 정지된 마켓은 예외 대상으로 등록
                     except UnboundLocalError:
@@ -229,6 +231,8 @@ class BatchManager():
 
             if loop_cnt % 100 == 0:
                 print("Finished %s Loop: %s seconds elapsed"%(loop_cnt, round(end_tm-start_tm,2)))
+
+            #time.sleep(10)
 
         ############################################################################
         db.disconnect()
@@ -528,7 +532,7 @@ class BatchManager():
                                                         msg = "SELL: dead_cross of %s(%s pro)"%(market, round(expected_profit*100,2))
                                                         trade_cd = -1
 
-                                        if 1:
+                                        if 0:
                                             # 특정 가격 보다 작은 종목은 보유하지 않음
                                             if series['close'][-1] < 300.0:
                                                 signal = False
