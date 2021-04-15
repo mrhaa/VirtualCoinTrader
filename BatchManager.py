@@ -399,10 +399,10 @@ class BatchManager():
                                     # 최근 매도한 마켓 리스트 중 일정 수준 이상 오르지 않았으면 재매수할 수 있음
                                     if RE_BID_TYPE == 'PRICE':
 
-                                        price_lag = 5
-                                        surge_rate_limit = 0.05
-                                        surge_rate = max(series['close'][-price_lag:])/min(series['close'][-price_lag:])-1
+                                        price_lag = 3
+                                        surge_rate_limit = 0.10
 
+                                        surge_rate = max(series['close'][-price_lag:])/min(series['close'][-price_lag:])-1
                                         if surge_rate < surge_rate_limit:
                                             print(market + "은 최근 매도 리스트에서 제외(PRICE, %s pro)." % (round(surge_rate*100,2)))
                                             recently_sold_list.pop(market)
@@ -552,10 +552,10 @@ class BatchManager():
                                                 recently_sold_list[market] = {'TIME':timer(), 'PRICE':series['close'][-1]}
 
                                             # 매매 성공
+                                            print(market, ret.text)
                                             if ret.status_code == 201:
                                                 bot.send_message(msg)
                                             elif ret.status_code == 400:
-                                            #    print(market, except_market_list, ret.text)
                                                 pass
 
                                         # 강제로 모든 포지션을 비우고 현금만 남으면 시스템 다운 시킴
