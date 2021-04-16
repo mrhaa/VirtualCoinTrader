@@ -377,7 +377,6 @@ class BatchManager():
                                 playable_market_list = sorted(playable_market_list.items(), key=lambda item: item[1], reverse=True)
                                 playable_market_list = {k: v for k, v in playable_market_list}
 
-
                                 # 최신 데이터에 시장가 적용
                                 if 0:
                                     series['close'][-1] = last['close'][0]
@@ -451,14 +450,18 @@ class BatchManager():
 
                                             # 거래량이 많은 약 상위 30% 만 매수 시도
                                             if market in list(playable_market_list.keys())[:40]:
+
                                                 # 최대 보유 가능 종류 수량을 넘는 경우
                                                 if balance_num > max_balance_num:
+
                                                     if loop_cnt%100 == 0:
                                                         print("현재 %s/%s 포지션 보유중으로 %s 추가 매수 불가"%(balance_num, max_balance_num, market))
                                                     pass
+
                                                 else:
                                                     # signal이 발생하거나 매매 처리 예외 리스트에 없는 경우
                                                     if market not in except_market_list:
+
                                                         if 0:
                                                             # 골든 크로스 BUY 시그널 계산
                                                             signal = sm.get_golden_cross_buy_signal(series=series, series_num=series_num, short_term=short_term, long_term=long_term
@@ -471,6 +474,7 @@ class BatchManager():
 
                                                         # 해당 코인을 보유하고 있지 않은 경우 매수
                                                         if market not in balance_list:
+
                                                             if signal == 'BUY':
                                                                 # 최근 매도한 마켓의 경우 잠시 동안 매수하지 않음
                                                                 if market in list(recently_sold_list.keys()):
@@ -478,6 +482,7 @@ class BatchManager():
                                                                 else:
                                                                     msg = "BUY: golden_cross of %s pro"%(market)
                                                                     trade_cd = 1
+
                                                         else:
                                                             # 손실률이 기준 이하인 경우 추가 매수
                                                             expected_loss = series['close'][-1]/float(balance['avg_price'][market])-1
@@ -496,8 +501,10 @@ class BatchManager():
 
                                         # 해당 코인을 보유하고 있는 경우 SELL 할 수 있음
                                         if market in balance_list:
+
                                             # signal이 발생하거나 매매 처리 예외 리스트에 없는 경우
                                             if market not in except_market_list:
+
                                                 # 물렸던 경우 목표 수익률 보다 낮은 수준에서 차익 실현
                                                 profit_multiple = 1.0
                                                 if series['close'][-1]*float(balance['balance'][market]) > buy_amount_unit*2:
@@ -506,6 +513,7 @@ class BatchManager():
                                                 # 목표한 수익률 달성 시 매도
                                                 expected_profit = (series['close'][-1]/float(balance['avg_price'][market])-1)*profit_multiple
                                                 if expected_profit > target_profit:
+
                                                     # 골든 크로스 BUY 시그널 계산
                                                     if 0:
                                                         signal = sm.get_golden_cross_buy_signal(series=series, series_num=series_num, short_term=sell_short_term, long_term=sell_long_term
@@ -526,8 +534,8 @@ class BatchManager():
                                                         signal = False
 
                                                 if SELL_SIGNAL:
-                                                    signal = sm.get_dead_cross_sell_signal(series=series, series_num=series_num, short_term=sell_short_term, long_term=sell_long_term)
 
+                                                    signal = sm.get_dead_cross_sell_signal(series=series, series_num=series_num, short_term=sell_short_term, long_term=sell_long_term)
                                                     if signal == 'SELL':
                                                         expected_profit = float(balance['avg_price'][market])/series['close'][-1]-1
                                                         msg = "SELL: dead_cross of %s(%s pro)"%(market, round(expected_profit*100,2))
@@ -581,6 +589,7 @@ class BatchManager():
             if loop_cnt % 10 == 0:
                 print("Finished %s Loop: %s seconds elapsed"%(loop_cnt, round(end_tm-start_tm,2)))
                 print("recently_sold_list: ", recently_sold_list)
+                print("playable_market_list(40개): ", list(playable_market_list.keys())[:40])
 
         ############################################################################
         db.disconnect()
