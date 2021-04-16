@@ -3,6 +3,7 @@
 import time
 import datetime
 from timeit import default_timer as timer
+import operator
 import numpy as np
 import pandas as pd
 
@@ -323,18 +324,11 @@ class BatchManager():
             call_err_neg_score_threshold = -10.0
 
         ############################################################################
-        if 0:
-            playable_market_list = {}
-            (markets, markets_num, markets_list) = mm.get_markets_info()
-            for market in markets.index:
-                (series, series_num) = dm.get_series_info(market=market)
-                rolling_short = series.rolling(window=5)
-                rolling_short_mean = rolling_short.mean().fillna(0)
-                rolling_short_std = rolling_short.std().fillna(0)
-                rolling_short_z = (series-rolling_short_mean)/rolling_short_std
-                #print(market, rolling_short_z['close'].tail(20).std())
-                playable_market_list[market] = rolling_short_z['close'].tail(20).std()
-            playable_market_list = sorted(playable_market_list.items(), key=lambda item:item[1])
+        playable_market_list = {}
+        (markets, markets_num, markets_list) = mm.get_markets_info()
+        for market in markets.index:
+            (series, series_num) = dm.get_series_info(market=market)
+            playable_market_list[market] = (series['volume'][-10:]*series['close'][-10:]).sum()
 
         ############################################################################
 
@@ -380,6 +374,10 @@ class BatchManager():
                                     continue
 
                                 (series, series_num) = dm.get_series_info(market=market)
+                                playable_market_list = sorted(playable_market_list.items(), key=lambda item: item[1], reverse=True)
+                                playable_market_list = {k: v for k, v in playable_market_list}
+
+
                                 # 최신 데이터에 시장가 적용
                                 if 0:
                                     series['close'][-1] = last['close'][0]
@@ -395,7 +393,7 @@ class BatchManager():
                                     print(np.polyfit(X, Y, 1)[0])
 
                                 # 최근 매도한 코인 재매수할 지 판단, 급등 이후 재매수를 통해 물리는 경우 방지
-                                if market in list(recently_sold_list.keys()):
+                                if market in recently_sold_list.keys():
                                     # 최근 매도한 마켓 리스트 중 일정 수준 이상 오르지 않았으면 재매수할 수 있음
                                     if RE_BID_TYPE == 'PRICE':
 
@@ -408,11 +406,11 @@ class BatchManager():
                                             recently_sold_list.pop(market)
 
                                     # 최근 매도한 마켓 리스트 중 일정 시간이 지나면 재매수할 수 있음
-                                    time_lag = 300
+                                    time_lag = 600
                                     if RE_BID_TYPE == 'TIME':
-                                        time_lag = 120
+                                        time_lag = 300
 
-                                    if market in list(recently_sold_list.keys()):
+                                    if market in recently_sold_list.keys():
                                         if timer()-recently_sold_list[market]['TIME'] > time_lag:
                                             print(market + "은 최근 매도 리스트에서 제외(TIME, %s)."%(time_lag))
                                             recently_sold_list.pop(market)
@@ -450,48 +448,51 @@ class BatchManager():
                                     else:
                                         # 현금이 최소 단위의 금액 이상 있는 경우 BUY 할 수 있음
                                         if float(balance[position_idx_nm][currency+'-'+currency]) > buy_amount_unit:
-                                            # 최대 보유 가능 종류 수량을 넘는 경우
-                                            if balance_num > max_balance_num:
-                                                if loop_cnt%100 == 0:
-                                                    print("현재 %s/%s 포지션 보유중으로 %s 추가 매수 불가"%(balance_num, max_balance_num, market))
-                                                pass
-                                            else:
-                                                # signal이 발생하거나 매매 처리 예외 리스트에 없는 경우
-                                                if market not in except_market_list:
-                                                    if 0:
-                                                        # 골든 크로스 BUY 시그널 계산
-                                                        signal = sm.get_golden_cross_buy_signal(series=series, series_num=series_num, short_term=short_term, long_term=long_term
-                                                                                                , short_term_momentum_threshold=short_term_momentum_threshold, long_term_momentum_threshold=long_term_momentum_threshold
-                                                                                                , volume_momentum_threshold=volume_momentum_threshold, direction=1)
-                                                    else:
-                                                        signal = sm.get_momentum_z_buy_signal(series=series, series_num=series_num
-                                                                                              , short_term=short_term, long_term=long_term
-                                                                                              , base=-0.1)
 
-                                                    # 해당 코인을 보유하고 있지 않은 경우 매수
-                                                    if market not in balance_list:
-                                                        if signal == 'BUY':
-                                                            # 최근 매도한 마켓의 경우 잠시 동안 매수하지 않음
-                                                            if market in list(recently_sold_list.keys()):
-                                                                signal = False
-                                                            else:
-                                                                msg = "BUY: golden_cross of %s pro"%(market)
-                                                                trade_cd = 1
-                                                    else:
-                                                        # 손실률이 기준 이하인 경우 추가 매수
-                                                        expected_loss = series['close'][-1]/float(balance['avg_price'][market])-1
-                                                        if expected_loss < additional_position_threshold:
-                                                            #print('추가 매수 시도:', market, signal, round(expected_loss*100,2), round(series['close'][-1],2), round(series['close'][-short_term:].mean(),2), round(series['close'][-long_term:].mean(),2))
-                                                            # 시장 조정 후 골든 크로스로 변경되는 경우 물타기
-                                                            if signal == 'BUY':
-                                                                msg = "BUY: loss of %s is %s pro. buy addtional position."%(market, round(expected_loss*100,2))
-                                                                trade_cd = 2
+                                            # 거래량이 많은 약 상위 30% 만 매수 시도
+                                            if market in list(playable_market_list.keys())[:40]:
+                                                # 최대 보유 가능 종류 수량을 넘는 경우
+                                                if balance_num > max_balance_num:
+                                                    if loop_cnt%100 == 0:
+                                                        print("현재 %s/%s 포지션 보유중으로 %s 추가 매수 불가"%(balance_num, max_balance_num, market))
+                                                    pass
+                                                else:
+                                                    # signal이 발생하거나 매매 처리 예외 리스트에 없는 경우
+                                                    if market not in except_market_list:
+                                                        if 0:
+                                                            # 골든 크로스 BUY 시그널 계산
+                                                            signal = sm.get_golden_cross_buy_signal(series=series, series_num=series_num, short_term=short_term, long_term=long_term
+                                                                                                    , short_term_momentum_threshold=short_term_momentum_threshold, long_term_momentum_threshold=long_term_momentum_threshold
+                                                                                                    , volume_momentum_threshold=volume_momentum_threshold, direction=1)
+                                                        else:
+                                                            signal = sm.get_momentum_z_buy_signal(series=series, series_num=series_num
+                                                                                                  , short_term=short_term, long_term=long_term
+                                                                                                  , base=-0.1)
 
-                                                        # 단위 금액보다 적은 금액이 매수된 경우 추가 매수
-                                                        if round(buy_amount_unit-float(balance['avg_price'][market])*float(balance['balance'][market]),-4)/10000.0 > 0:
+                                                        # 해당 코인을 보유하고 있지 않은 경우 매수
+                                                        if market not in balance_list:
                                                             if signal == 'BUY':
-                                                                msg = "BUY: less of %s is %s won. buy addtional position."%(market, round(buy_amount_unit-series['close'][-1]*float(balance['balance'][market]),-4))
-                                                                trade_cd = 3
+                                                                # 최근 매도한 마켓의 경우 잠시 동안 매수하지 않음
+                                                                if market in list(recently_sold_list.keys()):
+                                                                    signal = False
+                                                                else:
+                                                                    msg = "BUY: golden_cross of %s pro"%(market)
+                                                                    trade_cd = 1
+                                                        else:
+                                                            # 손실률이 기준 이하인 경우 추가 매수
+                                                            expected_loss = series['close'][-1]/float(balance['avg_price'][market])-1
+                                                            if expected_loss < additional_position_threshold:
+                                                                #print('추가 매수 시도:', market, signal, round(expected_loss*100,2), round(series['close'][-1],2), round(series['close'][-short_term:].mean(),2), round(series['close'][-long_term:].mean(),2))
+                                                                # 시장 조정 후 골든 크로스로 변경되는 경우 물타기
+                                                                if signal == 'BUY':
+                                                                    msg = "BUY: loss of %s is %s pro. buy addtional position."%(market, round(expected_loss*100,2))
+                                                                    trade_cd = 2
+
+                                                            # 단위 금액보다 적은 금액이 매수된 경우 추가 매수
+                                                            if round(buy_amount_unit-float(balance['avg_price'][market])*float(balance['balance'][market]),-4)/10000.0 > 0:
+                                                                if signal == 'BUY':
+                                                                    msg = "BUY: less of %s is %s won. buy addtional position."%(market, round(buy_amount_unit-series['close'][-1]*float(balance['balance'][market]),-4))
+                                                                    trade_cd = 3
 
                                         # 해당 코인을 보유하고 있는 경우 SELL 할 수 있음
                                         if market in balance_list:
@@ -552,7 +553,7 @@ class BatchManager():
                                                 recently_sold_list[market] = {'TIME':timer(), 'PRICE':series['close'][-1]}
 
                                             # 매매 성공
-                                            print(market, ret.text)
+                                            #print(market, ret.text)
                                             if ret.status_code == 201:
                                                 bot.send_message(msg)
                                             elif ret.status_code == 400:
@@ -577,7 +578,7 @@ class BatchManager():
             # 1 Cycle Finished
             loop_cnt += 1
 
-            if loop_cnt % 100 == 0:
+            if loop_cnt % 10 == 0:
                 print("Finished %s Loop: %s seconds elapsed"%(loop_cnt, round(end_tm-start_tm,2)))
                 print("recently_sold_list: ", recently_sold_list)
 
