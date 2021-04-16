@@ -325,10 +325,11 @@ class BatchManager():
 
         ############################################################################
         playable_market_list = {}
+        amount_calc_period = 3
         (markets, markets_num, markets_list) = mm.get_markets_info()
         for market in markets.index:
             (series, series_num) = dm.get_series_info(market=market)
-            playable_market_list[market] = (series['volume'][-10:]*series['close'][-10:]).sum()
+            playable_market_list[market] = (series['volume'][-amount_calc_period:]*series['close'][-amount_calc_period:]).sum()
 
         ############################################################################
 
@@ -374,8 +375,10 @@ class BatchManager():
                                     continue
 
                                 (series, series_num) = dm.get_series_info(market=market)
-                                playable_market_list = sorted(playable_market_list.items(), key=lambda item: item[1], reverse=True)
-                                playable_market_list = {k: v for k, v in playable_market_list}
+                                if loop_cnt % 100 == 0:
+                                    playable_market_list[market] = (series['volume'][-amount_calc_period:]*series['close'][-amount_calc_period:]).sum()
+                                    playable_market_list = sorted(playable_market_list.items(), key=lambda item: item[1], reverse=True)
+                                    playable_market_list = {k: v for k, v in playable_market_list}
 
                                 # 최신 데이터에 시장가 적용
                                 if 0:
@@ -454,8 +457,9 @@ class BatchManager():
                                                 # 최대 보유 가능 종류 수량을 넘는 경우
                                                 if balance_num > max_balance_num:
 
-                                                    if loop_cnt % 10 == 0:
+                                                    if loop_cnt % 100 == 0:
                                                         print("현재 %s/%s 포지션 보유중으로 %s 추가 매수 불가"%(balance_num, max_balance_num, market))
+                                                        
                                                     pass
 
                                                 else:
@@ -586,7 +590,7 @@ class BatchManager():
             # 1 Cycle Finished
             loop_cnt += 1
 
-            if loop_cnt % 10 == 0:
+            if loop_cnt % 100 == 0:
                 print("Finished %s Loop: %s seconds elapsed"%(loop_cnt, round(end_tm-start_tm,2)))
                 print("recently_sold_list: ", recently_sold_list)
                 print("playable_market_list(40개): ", list(playable_market_list.keys())[:40])
