@@ -454,7 +454,7 @@ class BatchManager():
                                                 # 최대 보유 가능 종류 수량을 넘는 경우
                                                 if balance_num > max_balance_num:
 
-                                                    if loop_cnt%100 == 0:
+                                                    if loop_cnt % 10 == 0:
                                                         print("현재 %s/%s 포지션 보유중으로 %s 추가 매수 불가"%(balance_num, max_balance_num, market))
                                                     pass
 
