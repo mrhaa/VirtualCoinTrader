@@ -302,7 +302,7 @@ class BatchManager():
         ############################################################################
         # 매매 시 사용 정보
         position_idx_nm = 'balance'
-        buy_amount_multiple = 5
+        buy_amount_multiple = 10
         buy_amount_unit = 10000.0*buy_amount_multiple
         additional_position_threshold = -0.145
 
@@ -375,8 +375,8 @@ class BatchManager():
                                     continue
 
                                 (series, series_num) = dm.get_series_info(market=market)
-                                if loop_cnt % 100 == 0:
-                                    playable_market_list[market] = (series['volume'][-amount_calc_period:]*series['close'][-amount_calc_period:]).sum()
+                                if loop_cnt % 10 == 0:
+                                    playable_market_list[market] = ((series['volume'][-amount_calc_period:]*series['close'][-amount_calc_period:]).sum())*(series['close'][-1]/series['close'][-amount_calc_period*2]-1)
                                     playable_market_list = sorted(playable_market_list.items(), key=lambda item: item[1], reverse=True)
                                     playable_market_list = {k: v for k, v in playable_market_list}
 
@@ -451,15 +451,15 @@ class BatchManager():
                                         # 현금이 최소 단위의 금액 이상 있는 경우 BUY 할 수 있음
                                         if float(balance[position_idx_nm][currency+'-'+currency]) > buy_amount_unit:
 
-                                            # 거래량이 많은 약 상위 30% 만 매수 시도
-                                            if market in list(playable_market_list.keys())[:40]:
+                                            # 거래량이 많은 약 상위 30%이고 최근 상승 구간에 있는 코인만 매수 시도
+                                            if market in list(playable_market_list.keys())[:40] and playable_market_list[market] > 0.1:
 
                                                 # 최대 보유 가능 종류 수량을 넘는 경우
                                                 if balance_num > max_balance_num:
 
-                                                    if loop_cnt % 100 == 0:
+                                                    if loop_cnt % 10 == 0:
                                                         print("현재 %s/%s 포지션 보유중으로 %s 추가 매수 불가"%(balance_num, max_balance_num, market))
-                                                        
+
                                                     pass
 
                                                 else:
@@ -588,12 +588,15 @@ class BatchManager():
 
             end_tm = timer()
             # 1 Cycle Finished
-            loop_cnt += 1
 
-            if loop_cnt % 100 == 0:
+            if loop_cnt % 10 == 0:
                 print("Finished %s Loop: %s seconds elapsed"%(loop_cnt, round(end_tm-start_tm,2)))
-                print("recently_sold_list: ", recently_sold_list)
-                print("playable_market_list(40개): ", list(playable_market_list.keys())[:40])
+                print("current balance num: %s(%s)" % (balance_num, balance_list))
+                for key_idx, key in enumerate(playable_market_list):
+                    if key_idx < 40 and playable_market_list[key] > 0.1:
+                        print("playable_market_list(%s): %s, %s" % (key_idx, key, round(playable_market_list[key]/100000000,2)))
+
+            loop_cnt += 1
 
         ############################################################################
         db.disconnect()
