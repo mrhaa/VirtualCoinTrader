@@ -11,8 +11,10 @@ if __name__ == '__main__':
     PRINT_DATA_LOG = False
     PROCEDURE_ERR_LOG = True  # 메인 프로시저 동작 시 오류
     API_ERR_LOG = False  # 비스업 API 호출 시 오류
+    SIMULATION = False # 시뮬레이션 여부
 
-    batch = BatchManager.BatchManager(PRINT_BALANCE_STATUS_LOG, PRINT_TRADABLE_MARKET_LOG, PRINT_DATA_LOG, PROCEDURE_ERR_LOG, API_ERR_LOG)
+    batch = BatchManager.BatchManager(PRINT_BALANCE_STATUS_LOG=PRINT_BALANCE_STATUS_LOG, PRINT_TRADABLE_MARKET_LOG=PRINT_TRADABLE_MARKET_LOG, PRINT_DATA_LOG=PRINT_DATA_LOG
+                                      , PROCEDURE_ERR_LOG=PROCEDURE_ERR_LOG, API_ERR_LOG=API_ERR_LOG, SIMULATION=SIMULATION)
 
     if 0:
         TEST_LOGIC = False
@@ -32,8 +34,9 @@ if __name__ == '__main__':
         SELL_SIGNAL = False
         RE_BID_TYPE = 'PRICE' # 'PRICE', 'TIME'
 
-        batch.loop_procedures(READ_BALANCE, READ_MARKET, READ_DATA, ANALYZE_DATA, TRADE_COIN
-                              , EMPTY_ALL_POSITION, CALL_TERM_APPLY, SELL_SIGNAL, RE_BID_TYPE)
+        batch.loop_procedures(READ_BALANCE=READ_BALANCE, READ_MARKET=READ_MARKET, READ_DATA=READ_DATA, ANALYZE_DATA=ANALYZE_DATA, TRADE_COIN=TRADE_COIN
+                              , EMPTY_ALL_POSITION=EMPTY_ALL_POSITION, CALL_TERM_APPLY=CALL_TERM_APPLY, SELL_SIGNAL=SELL_SIGNAL, RE_BID_TYPE=RE_BID_TYPE
+                              )#, TEST_MARKET='KRW-GRS')
 
     if 0:
         # 프로시저 작업 활성화 단계 설정(전 단계가 True인 경우 다음 단계에가 활성화될 수 있음)
@@ -43,7 +46,7 @@ if __name__ == '__main__':
         batch.make_db_for_learner(READ_MARKET, READ_DATA)
 
 
-    if 1:
+    if 0:
         batch.algorithm_test()
 
 
