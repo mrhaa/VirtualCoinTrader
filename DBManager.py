@@ -122,7 +122,7 @@ class DBManager():
             sql_arg = (cd, nm_kr, nm_us, nm_kr, nm_us)
             self.execute_query(sql, sql_arg)
 
-    def update_prices(self, market, interval_unit, interval_val, table_nm, seq, series, columns):
+    def update_prices(self, table_nm, market, interval_unit=None, interval_val=None, seq=None, series=None, columns=None):
 
         cd = market
 
@@ -158,7 +158,8 @@ class DBManager():
         self.execute_query(sql, sql_arg)
 
     def get_first_point(self, market, interval_unit, interval_val):
-        sql = "SELECT date, time FROM price" \
+        sql = "SELECT date, time" \
+              "  FROM price" \
               " WHERE cd = '%s'" \
               "   AND interval_unit = '%s'" \
               "   AND interval_val = '%s'" \
@@ -176,7 +177,8 @@ class DBManager():
             return date+' '+time
 
     def get_market_list(self):
-        sql = "SELECT DISTINCT cd FROM item"
+        sql = "SELECT DISTINCT cd" \
+              "  FROM item"
         # print(sql)
         ret = self.select_query(sql, columns=('cd',))
 
@@ -187,13 +189,16 @@ class DBManager():
 
     def get_candles(self, market, curr=None, to=None, interval_unit='minutes', interval_val='1', count=200):
 
+        if curr == None:
+            ret = self.get_ticker(market=market, seq=0)
+            curr = ret['date'].iloc[0]+'T'+ret['time'].iloc[0]
+
         sql = "SELECT cd, date, time, open, close, low, high, volume " \
               "  FROM price_hist" \
               " WHERE cd = '%s'" \
               "   AND interval_unit = '%s'" \
               "   AND interval_val = '%s'" \
-              "   AND concat(date, 'T', time) < '%s'" \
-              " ORDER BY date, time"%(market, interval_unit, interval_val, curr)
+              "   AND concat(date, 'T', time) < '%s'"%(market, interval_unit, interval_val, curr)
         # print(sql)
         ret = self.select_query(sql, columns=('cd', 'date', 'time', 'open', 'close', 'low', 'high', 'volume'))
 
@@ -216,4 +221,21 @@ class DBManager():
             return None
         else:
             return ret
+
+    def look_up_all_coins(self):
+
+        sql = "SELECT i.cd, i.kr_nm, i.us_nm" \
+              "  FROM item i, price_hist ph, price_spot ps" \
+              " WHERE i.cd = ph.cd" \
+              "   AND i.cd = ps.cd" \
+              " GROUP BY i.cd"
+
+        print(sql)
+        ret = self.select_query(sql, columns=('market', 'kr_nm', 'us_nm'))
+
+        if len(ret) == 0:
+            return None
+        else:
+            return ret
+
 

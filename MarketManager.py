@@ -1,8 +1,10 @@
 #_*_ coding: utf-8 _*_
 
 class MarketManager():
-    def __init__(self, PRINT_TRADABLE_MARKET_LOG):
+    def __init__(self, PRINT_TRADABLE_MARKET_LOG, SIMULATION=False):
         print("Generate MarketManager.")
+
+        self.SIMULATION = SIMULATION
 
         self.currency = None
         self.market_idx_nm = None
@@ -12,6 +14,7 @@ class MarketManager():
         self.markets_list = None
 
         self.api = None
+        self.db = None
 
         self.PRINT_TRADABLE_MARKET_LOG = PRINT_TRADABLE_MARKET_LOG
 
@@ -27,9 +30,18 @@ class MarketManager():
 
         self.api = api
 
+    def set_db(self, db):
+
+        self.db = db
+
     def get_markets_info(self):
 
-        self.markets = self.api.look_up_all_coins()
+        # 시뮬레이션인 경우 DB에 있는 데이터를 사용
+        if self.SIMULATION == False:
+            self.markets = self.api.look_up_all_coins()
+        else:
+            self.markets = self.db.look_up_all_coins()
+
         if self.markets is not False:
             #self.btc_markets = self.markets.loc[[True if 'BTC-' in market else False for market in self.markets[self.market_idx_nm]]]
             #self.usdt_markets = self.markets.loc[[True if 'USDT-' in market else False for market in self.markets[self.market_idx_nm]]]

@@ -15,8 +15,10 @@ else:
 
 class Telegram():
 
-    def __init__(self):
+    def __init__(self, SIMULATION=False):
         print("Generate Telegram.")
+
+        self.SIMULATION = SIMULATION
 
         self.token = None
         self.chat_id = None
@@ -43,7 +45,9 @@ class Telegram():
 
     def send_message(self, msg='Hello'):
 
-        self.bot.sendMessage(chat_id=self.chat_id, text=msg)
+        # 시뮬레이션인 경우 메세지를 보내지 않음
+        if self.SIMULATION == False:
+            self.bot.sendMessage(chat_id=self.chat_id, text=msg)
         print(msg)
 
 

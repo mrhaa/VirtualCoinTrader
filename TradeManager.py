@@ -3,8 +3,10 @@
 
 
 class TradeManager():
-    def __init__(self):
+    def __init__(self, SIMULATION=False):
         print("Generate TradeManager.")
+
+        self.SIMULATION = SIMULATION
 
         self.buy_amount_unit = None
         self.position_idx_nm = None
@@ -13,6 +15,7 @@ class TradeManager():
         self.balance_list = None
 
         self.api = None
+        self.db = None
 
     def __del__(self):
         print("Destroy TradeManager.")
@@ -20,6 +23,10 @@ class TradeManager():
     def set_api(self, api):
 
         self.api = api
+
+    def set_db(self, db):
+
+        self.db = db
 
     def set_balance(self, balance):
 
@@ -49,16 +56,24 @@ class TradeManager():
             # 단위 금액 조정으로 추가 매수
             elif trade_cd == 3:
                 buy_amount = 10000.0
-            ret = self.api.order(market=market, side='bid', volume=None, price=str(buy_amount), ord_type='price')
-            #print(market + " 매수 성공") if ret.status_code == 201 else False
+
+            if self.SIMULATION == False:
+                ret = self.api.order(market=market, side='bid', volume=None, price=str(buy_amount), ord_type='price')
+                # print(market + " 매수 성공") if ret.status_code == 201 else False
+            else:
+                ret = {'market': market, 'side': 'bid', 'trade_cd': trade_cd, 'price': buy_amount}
 
         elif signal == 'SELL':
             # 해당 코인을 보유하고 있는 경우 SELL 할 수 있음
             if market in self.balance_list:
                 # 매도할 수량 계산(전체)
                 sell_balance = self.balance[self.position_idx_nm][market]
-                ret = self.api.order(market=market, side='ask', volume=str(sell_balance), price=None, ord_type='market')
-                #print(market + " 매도 성공") if ret.status_code == 201 else False
+
+                if self.SIMULATION == False:
+                    ret = self.api.order(market=market, side='ask', volume=str(sell_balance), price=None, ord_type='market')
+                    # print(market + " 매도 성공") if ret.status_code == 201 else False
+                else:
+                    ret = {'market': market, 'side': 'ask', 'trade_cd': trade_cd, 'volume': sell_balance}
 
         return ret
 
