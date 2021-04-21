@@ -4,6 +4,8 @@ import mysql.connector
 from mysql.connector import errorcode
 import pandas as pd
 
+import time
+
 
 # DB 접속 정보를 dict type으로 준비한다.
 config = {
@@ -134,10 +136,10 @@ class DBManager():
             volume = row[1][columns[4]]
 
             if table_nm == 'price_spot':
-                sql = "INSERT INTO %s (seq, cd, interval_unit, interval_val, date, time, open, close, low, high, volume, create_time, update_time) " \
-                      "VALUES (%s, '%s', '%s', '%s', '%s', '%s', %s, %s, %s, %s, %s, now(), now()) " \
+                sql = "INSERT INTO %s (seq, cd, date, time, open, close, low, high, volume, create_time, update_time) " \
+                      "VALUES (%s, '%s', '%s', '%s', %s, %s, %s, %s, %s, now(), now()) " \
                       "ON DUPLICATE KEY UPDATE open = %s, close = %s, low = %s, high = %s, volume = %s, update_time = now()"
-                sql_arg = (table_nm, seq, cd, interval_unit, interval_val, date, time, open, close, low, high, volume, open, close, low, high, volume)
+                sql_arg = (table_nm, seq, cd, date, time, open, close, low, high, volume, open, close, low, high, volume)
 
             elif table_nm == 'price_hist':
                 sql = "INSERT INTO %s (cd, interval_unit, interval_val, date, time, open, close, low, high, volume, create_time, update_time) " \
@@ -183,21 +185,35 @@ class DBManager():
         else:
             return list(ret['cd'])
 
-    def get_data_series(self, market, interval_unit, interval_val):
+    def get_candles(self, market, curr=None, to=None, interval_unit='minutes', interval_val='1', count=200):
 
-        sql = "SELECT cd, interval_unit, interval_val, date, time, open, close, low, high, volume " \
-              "  FROM price" \
+        sql = "SELECT cd, date, time, open, close, low, high, volume " \
+              "  FROM price_hist" \
               " WHERE cd = '%s'" \
               "   AND interval_unit = '%s'" \
               "   AND interval_val = '%s'" \
-              " ORDER BY date, time"%(market, interval_unit, interval_val)
+              "   AND concat(date, 'T', time) < '%s'" \
+              " ORDER BY date, time"%(market, interval_unit, interval_val, curr)
         # print(sql)
-        ret = self.select_query(sql, columns=('cd', 'interval_unit', 'interval_val', 'date', 'time', 'open', 'close', 'low', 'high', 'volume'))
+        ret = self.select_query(sql, columns=('cd', 'date', 'time', 'open', 'close', 'low', 'high', 'volume'))
 
         if len(ret) == 0:
             return None
         else:
             return ret
 
+    def get_ticker(self, market, seq=None):
 
+        sql = "SELECT cd, date, time, open, close, low, high, volume " \
+              "  FROM price_spot" \
+              " WHERE cd = '%s'" \
+              "   AND seq = %s" \
+              " ORDER BY date, time" % (market, seq)
+        # print(sql)
+        ret = self.select_query(sql, columns=('cd', 'date', 'time', 'open', 'close', 'low', 'high', 'volume'))
+
+        if len(ret) == 0:
+            return None
+        else:
+            return ret
 

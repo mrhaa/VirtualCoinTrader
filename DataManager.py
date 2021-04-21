@@ -38,9 +38,9 @@ class DataManager():
 
         self.api = api
 
-    def get_series_info(self, market, to=None):
+    def get_series_info(self, market, curr=None, to=None):
 
-        self.series = self.api.get_candles(market, to, self.interval_unit, self.interval_val, self.count)
+        self.series = self.api.get_candles(market=market, curr=curr, to=to, interval_unit=self.interval_unit, interval_val=self.interval_val, count=self.count)
         if self.series is not False:
             # series[series_idx_nm].apply(lambda x: datetime.datetime.strptime(x, "%Y-%m-%dT%H:%M:%S"))
             self.series.rename(columns={'opening_price': 'open', 'high_price': 'high', 'low_price': 'low', 'trade_price': 'close', 'candle_acc_trade_volume': 'volume'}, inplace=True)
@@ -67,9 +67,9 @@ class DataManager():
         return (self.series, self.series_num)
 
 
-    def get_last_info(self, market, to=None):
+    def get_last_info(self, market):
 
-        self.last = self.api.get_ticker(market)
+        self.last = self.api.get_ticker(market=market)
         if self.last is not False:
             self.last.rename(columns={'opening_price': 'open', 'high_price': 'high', 'low_price': 'low', 'trade_price': 'close', 'candle_acc_trade_volume': 'volume'}, inplace=True)
             #self.last[[self.last_idx_nm1, self.last_idx_nm2]].apply('-'.join, axis=1)

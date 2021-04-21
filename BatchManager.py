@@ -212,10 +212,10 @@ class BatchManager():
                                 print("No data series.")
                                 continue
                             else:
-                                db.update_prices(market=market, interval_unit=interval_unit, interval_val=interval_val, table_nm='price_spot', seq=loop_cnt, series=new_low, columns=('open', 'close', 'low', 'high', 'volume'))
+                                db.update_prices(market=market, table_nm='price_spot', seq=loop_cnt, series=new_low, columns=('open', 'close', 'low', 'high', 'volume'))
 
                                 if loop_cnt % 100 == 0:
-                                    db.update_prices(market=market, interval_unit=interval_unit, interval_val=interval_val, table_nm='price_hist', seq=loop_cnt, series=series, columns=('open', 'close', 'low', 'high', 'volume'))
+                                    db.update_prices(market=market, interval_unit=interval_unit, interval_val=interval_val, table_nm='price_hist', series=series, columns=('open', 'close', 'low', 'high', 'volume'))
 
 
                     # 일시적으로 거래가 정지된 마켓은 예외 대상으로 등록
@@ -240,7 +240,7 @@ class BatchManager():
 
     def loop_procedures(self, READ_BALANCE=True, READ_MARKET=True, READ_DATA=True, ANALYZE_DATA=True, TRADE_COIN=False
                         , EMPTY_ALL_POSITION=False, CALL_TERM_APPLY=False, SELL_SIGNAL=False, RE_BID_TYPE='PRICE'
-                        , TEST_MARKET=None, loop_num=float('inf')):
+                        , TEST_MARKET=None, loop_num=float('inf'), SIMULATION=False):
 
         ############################################################################
         db = DBManager.DBManager()
@@ -601,7 +601,7 @@ class BatchManager():
         ############################################################################
         db.disconnect()
 
-    def algorithm_test(self, algorithm='golden_cross'):
+    def algorithm_test(self, loop_num=float('inf'), algorithm='golden_cross'):
 
         ############################################################################
         db = DBManager.DBManager()
@@ -610,51 +610,56 @@ class BatchManager():
         total_profit = 0
 
         interval_unit = 'minutes'
-        interval_val = '1'
-        market_list = db.get_market_list()
-        for market in market_list:
-            df_series = db.get_data_series(market, interval_unit, interval_val)
-            #print(df_series)
+        interval_val = '10'
 
-            df_series['pct'] = 0.0
-            df_series['pct_acc'] = 0.0
-            for idx in range(len(df_series.index)):
-                curr_value = df_series.iloc[idx]['close']
-                if idx == 0:
-                    first_value = curr_value
-                else:
-                    df_series['pct'][idx] = curr_value/prev_value-1
-                    df_series['pct_acc'][idx] = curr_value/first_value-1
-                prev_value = curr_value
-                #df_series_transpose = df_series.transpose()
+        loop_cnt = 0
+        while loop_cnt < loop_num:
 
-            target_profit = 0.05
-            signal = False
-            in_value = 0
-            if algorithm == 'golden_cross':
-                short_term = 5
-                long_term = 20
-                for idx in range(len(df_series.index) - long_term):
-                    curr_value = df_series.iloc[idx+long_term]['close']
-                    short_avg = df_series.iloc[idx+(long_term-short_term):idx+long_term]['close'].mean()
-                    long_avg = df_series.iloc[idx:idx+long_term]['close'].mean()
+            market_list = db.get_market_list()
+            for market in market_list:
+                df_curr = db.get_ticker(market=market, seq=loop_cnt)
+                df_series = db.get_candles(market=market, curr=(df_curr['date'].iloc[0]+'T'+df_curr['time'].iloc[0]), interval_unit=interval_unit, interval_val=interval_val)
+                #print(df_series)
 
-                    if curr_value > short_avg and short_avg > long_avg and signal == False:
-                        signal = True
-                        in_value = curr_value
+                df_series['pct'] = 0.0
+                df_series['pct_acc'] = 0.0
+                for idx in range(len(df_series.index)):
+                    curr_value = df_series.iloc[idx]['close']
+                    if idx == 0:
+                        first_value = curr_value
+                    else:
+                        df_series['pct'][idx] = curr_value/prev_value-1
+                        df_series['pct_acc'][idx] = curr_value/first_value-1
+                    prev_value = curr_value
+                    #df_series_transpose = df_series.transpose()
 
-                    profit = curr_value/in_value-1
-                    if profit > target_profit and signal == True:
-                        #print(market, 'profit', round(min(profit, target_profit),4))
-                        total_profit += min(profit, target_profit)
+                target_profit = 0.05
+                signal = False
+                in_value = 0
+                if algorithm == 'golden_cross':
+                    short_term = 5
+                    long_term = 20
+                    for idx in range(len(df_series.index) - long_term):
+                        curr_value = df_series.iloc[idx+long_term]['close']
+                        short_avg = df_series.iloc[idx+(long_term-short_term):idx+long_term]['close'].mean()
+                        long_avg = df_series.iloc[idx:idx+long_term]['close'].mean()
 
-                        signal = False
-                        in_value = 0
+                        if curr_value > short_avg and short_avg > long_avg and signal == False:
+                            signal = True
+                            in_value = curr_value
 
-                    if idx == len(df_series.index) - long_term - 1 and signal == True:
-                        #print(market, 'loss', round(profit-1,4))
-                        total_profit += profit-1
-        print('total_profit: ', round(total_profit,4))
+                        profit = curr_value/in_value-1
+                        if profit > target_profit and signal == True:
+                            #print(market, 'profit', round(min(profit, target_profit),4))
+                            total_profit += min(profit, target_profit)
+
+                            signal = False
+                            in_value = 0
+
+                        if idx == len(df_series.index) - long_term - 1 and signal == True:
+                            #print(market, 'loss', round(profit-1,4))
+                            total_profit += profit-1
+            print('total_profit: ', round(total_profit,4))
         """ 
         else:
             cnt = 0
