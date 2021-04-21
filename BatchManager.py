@@ -173,6 +173,8 @@ class BatchManager():
         series_idx_nm = 'candle_date_time_kst'
         interval_unit = 'minutes'
         interval_val = '10'
+        interval_unit2 = 'minutes'
+        interval_val2 = '1'
         count = 100
 
         last_idx_nm1 = 'trade_date_kst'
@@ -181,6 +183,10 @@ class BatchManager():
         dm = DataManager.DataManager(self.PRINT_DATA_LOG)
         dm.set_api(api=api)
         dm.set_parameters_for_series(interval_unit=interval_unit, interval_val=interval_val, count=count, series_idx_nm=series_idx_nm, last_idx_nm1=last_idx_nm1, last_idx_nm2=last_idx_nm2)
+
+        dm2 = DataManager.DataManager(self.PRINT_DATA_LOG)
+        dm2.set_api(api=api)
+        dm2.set_parameters_for_series(interval_unit=interval_unit2, interval_val=interval_val2, count=count, series_idx_nm=series_idx_nm, last_idx_nm1=last_idx_nm1, last_idx_nm2=last_idx_nm2)
 
         ############################################################################
 
@@ -205,6 +211,7 @@ class BatchManager():
                                 continue
 
                             (series, series_num) = dm.get_series_info(market=market)
+                            (series2, series_num2) = dm2.get_series_info(market=market)
 
                             new_idx = last['trade_date'][0][:4]+'-'+last['trade_date'][0][4:6]+'-'+last['trade_date'][0][-2:]+'T'+last['trade_time_kst'][0][:2]+':'+last['trade_time_kst'][0][2:4]+':'+last['trade_time_kst'][0][-2:]
                             new_low = pd.DataFrame({'market': market, 'open': last['open'][0], 'close': last['close'][0], 'low': last['low'][0], 'high': last['high'][0], 'volume': last['trade_volume'][0]}, columns=series.columns, index=[new_idx])
@@ -216,6 +223,8 @@ class BatchManager():
                                 db.update_prices(table_nm='price_spot', market=market, seq=loop_cnt, series=new_low, columns=('open', 'close', 'low', 'high', 'volume'))
                                 if loop_cnt % 1000 == 0:
                                     db.update_prices(table_nm='price_hist', market=market, interval_unit=interval_unit, interval_val=interval_val, series=series, columns=('open', 'close', 'low', 'high', 'volume'))
+                                if loop_cnt % 100 == 0:
+                                    db.update_prices(table_nm='price_hist', market=market, interval_unit=interval_unit2, interval_val=interval_val2, series=series2, columns=('open', 'close', 'low', 'high', 'volume'))
 
 
                     # 일시적으로 거래가 정지된 마켓은 예외 대상으로 등록
