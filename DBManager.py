@@ -230,7 +230,7 @@ class DBManager():
               "   AND i.cd = ps.cd" \
               " GROUP BY i.cd"
 
-        print(sql)
+        #print(sql)
         ret = self.select_query(sql, columns=('market', 'kr_nm', 'us_nm'))
 
         if len(ret) == 0:

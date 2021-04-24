@@ -359,7 +359,7 @@ class BatchManager():
 
             if READ_BALANCE:
 
-                (balance, balance_num, balance_list, max_balance_num) = bm.get_balance_info()
+                (balance, balance_num, balance_list, max_balance_num) = bm.get_balance_info(True if loop_cnt == 0 else False)
 
                 if READ_MARKET:
 
@@ -415,18 +415,18 @@ class BatchManager():
                                     # 최근 매도한 마켓 리스트 중 일정 수준 이상 오르지 않았으면 재매수할 수 있음
                                     if RE_BID_TYPE == 'PRICE':
 
-                                        price_lag = 3
+                                        price_lag = 5
                                         surge_rate_limit = 0.10
 
-                                        surge_rate = max(series['close'][-price_lag:])/min(series['close'][-price_lag:])-1
+                                        surge_rate = series['close'][-1]/min(series['close'][-price_lag:])-1
                                         if surge_rate < surge_rate_limit:
-                                            print(market + "은 최근 매도 리스트에서 제외(PRICE, %s pro)." % (round(surge_rate*100,2)))
+                                            print("%s은 최근 매도 리스트에서 제외(PRICE, %s pro)."%(market, round(surge_rate*100,2)))
                                             recently_sold_list.pop(market)
 
                                     # 최근 매도한 마켓 리스트 중 일정 시간이 지나면 재매수할 수 있음
-                                    time_lag = 600
+                                    time_lag = 1200
                                     if RE_BID_TYPE == 'TIME':
-                                        time_lag = 300
+                                        time_lag = 600
 
                                     if market in recently_sold_list.keys():
                                         if timer()-recently_sold_list[market]['TIME'] > time_lag:
@@ -579,7 +579,7 @@ class BatchManager():
                                                 db.save_signal(market=market, date=series.index[-1][:10], time=series.index[-1][-8:], signal=signal, trade_cd=trade_cd, price=series['close'][-1])
 
                                                 # 매매 성공
-                                                #print(market, ret.text)
+                                                # print(market, ret.text)
                                                 if ret.status_code == 201:
                                                     bot.send_message(msg)
                                                 elif ret.status_code == 400:
@@ -588,10 +588,21 @@ class BatchManager():
                                             if signal == 'SELL':
                                                 recently_sold_list[market] = {'TIME':timer(), 'PRICE':series['close'][-1]}
 
-
                                         # 강제로 모든 포지션을 비우고 현금만 남으면 시스템 다운 시킴
                                         if EMPTY_ALL_POSITION and balance_num == 1:
                                             sys.exit()
+
+                                    if self.SIMULATION == True:
+                                        print("----------------------My Balance Status(%s, %s)----------------------"%(loop_cnt, market))
+                                        total_amount = 0.0
+                                        for idx, row in enumerate(balance.iterrows()):
+                                            print(str(idx) + " " + row[0] + ", balacne: " + str(row[1]['balance']) + ", avg_price: " + str(row[1]['avg_price']))
+                                            if row[0] == currency + '-' + currency:
+                                                total_amount += row[1]['balance']
+                                            else:
+                                                total_amount += row[1]['balance'] * db.get_ticker(row[0], loop_cnt)['close'][0]
+                                        print("-----------------------Total Amount: %s -------------------------"%(format(round(total_amount), ',')))
+
 
                         # 일시적으로 거래가 정지된 마켓은 예외 대상으로 등록
                         except UnboundLocalError:
@@ -607,12 +618,13 @@ class BatchManager():
             end_tm = timer()
             # 1 Cycle Finished
 
-            if loop_cnt % 10 == 0:
-                print("Finished %s Loop: %s seconds elapsed"%(loop_cnt, round(end_tm-start_tm,2)))
-                print("current balance num: %s(%s)" % (balance_num, balance_list))
-                for key_idx, key in enumerate(playable_market_list):
-                    if key_idx < 40 and playable_market_list[key] > 100000000.0:
-                        print("playable_market_list(%s): %s, %s" % (key_idx, key, round(playable_market_list[key]/100000000.0,2)))
+            if self.SIMULATION == False:
+                if loop_cnt % 10 == 0:
+                    print("Finished %s Loop: %s seconds elapsed"%(loop_cnt, round(end_tm-start_tm,2)))
+                    print("current balance num: %s(%s)" % (balance_num, balance_list))
+                    for key_idx, key in enumerate(playable_market_list):
+                        if key_idx < 40 and playable_market_list[key] > 100000000.0:
+                            print("playable_market_list(%s): %s, %s" % (key_idx, key, round(playable_market_list[key]/100000000.0,2)))
 
             loop_cnt += 1
 
