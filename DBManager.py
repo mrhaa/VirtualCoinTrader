@@ -199,7 +199,7 @@ class DBManager():
               "   AND interval_unit = '%s'" \
               "   AND interval_val = '%s'" \
               "   AND concat(date, 'T', time) < '%s'"%(market, interval_unit, interval_val, curr)
-        # print(sql)
+        #print(sql)
         ret = self.select_query(sql, columns=('cd', 'date', 'time', 'open', 'close', 'low', 'high', 'volume'))
 
         if len(ret) == 0:
@@ -214,7 +214,7 @@ class DBManager():
               " WHERE cd = '%s'" \
               "   AND seq = %s" \
               " ORDER BY date, time" % (market, seq)
-        # print(sql)
+        #print(sql)
         ret = self.select_query(sql, columns=('cd', 'date', 'time', 'open', 'close', 'low', 'high', 'volume'))
 
         if len(ret) == 0:
@@ -225,9 +225,8 @@ class DBManager():
     def look_up_all_coins(self):
 
         sql = "SELECT i.cd, i.kr_nm, i.us_nm" \
-              "  FROM item i, price_hist ph, price_spot ps" \
+              "  FROM item i, price_hist ph" \
               " WHERE i.cd = ph.cd" \
-              "   AND i.cd = ps.cd" \
               " GROUP BY i.cd"
 
         #print(sql)

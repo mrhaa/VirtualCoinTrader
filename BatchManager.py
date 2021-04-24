@@ -366,7 +366,7 @@ class BatchManager():
                     (markets, markets_num, markets_list) = mm.get_markets_info()
 
                     # 거래가 가능한 종목들을 순차적으로 돌아가며 처리
-                    for market in markets.index:
+                    for idx_mrk, market in enumerate(markets.index):
 
                         # 특정 코인으로 테스트하기 위함
                         if TEST_MARKET is None:
@@ -390,7 +390,8 @@ class BatchManager():
                                     print("No last data.")
                                     continue
 
-                                (series, series_num) = dm.get_series_info(market=market, curr=last['trade_date_kst'].iloc[0]+'T'+last['trade_time_kst'].iloc[0])
+                                new_idx = last['trade_date_kst'][0][:4]+'-'+last['trade_date_kst'][0][4:6]+'-'+last['trade_date_kst'][0][-2:]+'T'+last['trade_time_kst'][0][:2]+':'+last['trade_time_kst'][0][2:4]+':'+last['trade_time_kst'][0][-2:]
+                                (series, series_num) = dm.get_series_info(market=market, curr=new_idx)
                                 if loop_cnt % 10 == 0:
                                     playable_market_list[market] = ((series['volume'][-amount_calc_period:]*series['close'][-amount_calc_period:]).sum())*(series['close'][-1]/series['close'][-amount_calc_period*2])
                                     playable_market_list = sorted(playable_market_list.items(), key=lambda item: item[1], reverse=True)
@@ -400,7 +401,6 @@ class BatchManager():
                                 if 0:
                                     series['close'][-1] = last['close'][0]
                                 else:
-                                    new_idx = last['trade_date_kst'][0][:4]+'-'+last['trade_date_kst'][0][4:6]+'-'+last['trade_date_kst'][0][-2:]+'T'+last['trade_time_kst'][0][:2]+':'+last['trade_time_kst'][0][2:4]+':'+last['trade_time_kst'][0][-2:]
                                     if datetime.datetime.strptime(new_idx, "%Y-%m-%dT%H:%M:%S") > datetime.datetime.strptime(series.index[-1], "%Y-%m-%dT%H:%M:%S"):
                                         new_low = pd.DataFrame({'market': market, 'close': last['close'][0]}, columns=series.columns, index=[new_idx])
                                         (series, series_num) = dm.append_new_data(market=market, data=new_low)
@@ -592,16 +592,17 @@ class BatchManager():
                                         if EMPTY_ALL_POSITION and balance_num == 1:
                                             sys.exit()
 
-                                    if self.SIMULATION == True:
-                                        print("----------------------My Balance Status(%s, %s)----------------------"%(loop_cnt, market))
-                                        total_amount = 0.0
+                                    if self.SIMULATION == True and idx_mrk == 0 and loop_cnt % 10 == 0:
+                                        print("----------------------My Balance Status(loop_cnt: %s, balance_num: %s)----------------------"%(loop_cnt, balance_num))
+                                        cash_amount = 0.0
+                                        asset_amount = 0.0
                                         for idx, row in enumerate(balance.iterrows()):
-                                            print(str(idx) + " " + row[0] + ", balacne: " + str(row[1]['balance']) + ", avg_price: " + str(row[1]['avg_price']))
-                                            if row[0] == currency + '-' + currency:
-                                                total_amount += row[1]['balance']
+                                            #print(str(idx) + " " + row[0] + ", balacne: " + str(row[1]['balance']) + ", avg_price: " + str(row[1]['avg_price']))
+                                            if row[0] == currency+'-'+currency:
+                                                cash_amount += row[1]['balance']
                                             else:
-                                                total_amount += row[1]['balance'] * db.get_ticker(row[0], loop_cnt)['close'][0]
-                                        print("-----------------------Total Amount: %s -------------------------"%(format(round(total_amount), ',')))
+                                                asset_amount += row[1]['balance']*db.get_ticker(row[0], loop_cnt)['close'][0]
+                                        print("-----------------------Total Amount: %s(cash: %s, asset: %s) -------------------------"%(format(round(cash_amount+asset_amount), ','), format(round(cash_amount), ',')), format(round(asset_amount), ','))
 
 
                         # 일시적으로 거래가 정지된 마켓은 예외 대상으로 등록
