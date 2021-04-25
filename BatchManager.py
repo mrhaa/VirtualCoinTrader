@@ -490,7 +490,7 @@ class BatchManager():
                                                         else:
                                                             signal = sm.get_momentum_z_buy_signal(series=series, series_num=series_num
                                                                                                   , short_term=short_term, long_term=long_term
-                                                                                                  , base=-0.1)
+                                                                                                  , base=0.0)
 
                                                         # 해당 코인을 보유하고 있지 않은 경우 매수
                                                         if market not in balance_list:
@@ -542,7 +542,7 @@ class BatchManager():
                                                     else:
                                                         signal = sm.get_momentum_z_buy_signal(series=series, series_num=series_num
                                                                                               , short_term=sell_short_term, long_term=sell_long_term
-                                                                                              , base=-0.1)
+                                                                                              , base=0.0)
                                                     #print('수익 실현 시도:', market, signal, round(expected_profit/profit_multiple*100,2), round(series['close'][-1],2), round(series['close'][-sell_short_term:].mean(),2), round(series['close'][-sell_long_term:].mean(),2))
 
                                                     # 골든 크로스 해지, 정배열이 없어지면 모멘텀이 사라졌다고 판단
@@ -554,8 +554,12 @@ class BatchManager():
                                                         signal = False
 
                                                 if SELL_SIGNAL:
-
-                                                    signal = sm.get_dead_cross_sell_signal(series=series, series_num=series_num, short_term=sell_short_term, long_term=sell_long_term)
+                                                    if 0:
+                                                        signal = sm.get_dead_cross_sell_signal(series=series, series_num=series_num, short_term=sell_short_term, long_term=sell_long_term)
+                                                    else:
+                                                        signal = sm.get_momentum_z_sell_signal(series=series, series_num=series_num
+                                                                                              , short_term=sell_short_term, long_term=sell_long_term
+                                                                                              , base=0.0)
                                                     if signal == 'SELL':
                                                         expected_profit = float(balance['avg_price'][market])/series['close'][-1]-1
                                                         msg = "SELL: dead_cross of %s(%s pro)"%(market, round(expected_profit*100,2))
@@ -568,6 +572,7 @@ class BatchManager():
 
                                     if TRADE_COIN:
                                         if signal == 'BUY' or signal == 'SELL':
+
                                             tm.set_balance(balance)
                                             ret = tm.execute_at_market_price(market=market, signal=signal, trade_cd=trade_cd)
                                             #print("execute return: %s"%(ret))
@@ -602,7 +607,7 @@ class BatchManager():
                                                 cash_amount += row[1]['balance']
                                             else:
                                                 asset_amount += row[1]['balance']*db.get_ticker(row[0], loop_cnt)['close'][0]
-                                        print("-----------------------Total Amount: %s(cash: %s, asset: %s) -------------------------"%(format(round(cash_amount+asset_amount), ','), format(round(cash_amount), ',')), format(round(asset_amount), ','))
+                                        print("-----------------------Total Amount: %s(Cash: %s, Asset: %s) -------------------------"%(format(round(cash_amount+asset_amount), ','), format(round(cash_amount), ','), format(round(asset_amount), ',')))
 
 
                         # 일시적으로 거래가 정지된 마켓은 예외 대상으로 등록

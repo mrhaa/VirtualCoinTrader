@@ -98,3 +98,36 @@ class SignalMaker:    # 클래스
             return 'BUY'
         else:
             return False
+
+    def get_momentum_z_sell_signal(self, series, series_num, short_term, long_term, base=0.0):
+
+        # short term & long term 확인
+        short_len = min(short_term, series_num)
+        long_len = min(long_term, series_num)
+
+        if short_len == long_len:
+            return False
+
+        rolling_short = series.rolling(window=short_len)
+        rolling_short_mean = rolling_short.mean().fillna(0)
+        rolling_short_std = rolling_short.std().fillna(0)
+        rolling_short_z = (series-rolling_short_mean)/rolling_short_std
+
+        rolling_long = series.rolling(window=long_len)
+        rolling_long_mean = rolling_long.mean().fillna(0)
+        rolling_long_std = rolling_long.std().fillna(0)
+        rolling_long_z = (series-rolling_long_mean)/rolling_long_std
+
+        short_price_momentum = rolling_short_z['close'][-1]
+        long_price_momentum = rolling_long_z['close'][-1]
+        short_price_momentum_prev = rolling_short_z['close'][-2]
+        long_price_momentum_prev = rolling_long_z['close'][-2]
+
+        #print('momentum_z_buy_signal: ', series['market'][0], short_price_momentum, long_price_momentum)
+        #print('short_z: ', series['market'][0], rolling_short_z['close'][-5:])
+        #print('long_z: ', series['market'][0], rolling_long_z['close'][-5:])
+        #print('long_z: ', series['market'][0], short_price_momentum, long_price_momentum, (short_price_momentum-long_price_momentum), (short_price_momentum-short_price_momentum_prev))
+        if short_price_momentum < base and short_price_momentum < long_price_momentum and short_price_momentum < short_price_momentum_prev:
+            return 'SELL'
+        else:
+            return False
