@@ -292,7 +292,7 @@ class BatchManager():
         series_idx_nm = 'candle_date_time_kst'
         interval_unit = 'minutes'
         interval_val = '10'
-        count = 200  # 최대 200개
+        count = 100  # 최대 200개
 
         last_idx_nm1 = 'trade_date_kst'
         last_idx_nm2 = 'trade_time_kst'
@@ -340,12 +340,13 @@ class BatchManager():
             call_err_neg_score_threshold = -10.0
 
         ############################################################################
+        market_shock = False
         playable_market_list = {}
         amount_calc_period = 3
         (markets, markets_num, markets_list) = mm.get_markets_info()
         for market in markets.index:
             (series, series_num) = dm.get_series_info(market=market)
-            playable_market_list[market] = (series['volume'][-amount_calc_period:]*series['close'][-amount_calc_period:]).sum()
+            playable_market_list[market] = ((series['volume'][-amount_calc_period:]*series['close'][-amount_calc_period:]).sum())*(series['close'][-1]/series['close'][-amount_calc_period*2]-1)
 
         ############################################################################
 
@@ -393,9 +394,21 @@ class BatchManager():
                                 new_idx = last['trade_date_kst'][0][:4]+'-'+last['trade_date_kst'][0][4:6]+'-'+last['trade_date_kst'][0][-2:]+'T'+last['trade_time_kst'][0][:2]+':'+last['trade_time_kst'][0][2:4]+':'+last['trade_time_kst'][0][-2:]
                                 (series, series_num) = dm.get_series_info(market=market, curr=new_idx)
                                 if loop_cnt % 10 == 0:
-                                    playable_market_list[market] = ((series['volume'][-amount_calc_period:]*series['close'][-amount_calc_period:]).sum())*(series['close'][-1]/series['close'][-amount_calc_period*2])
+                                    # 최근 특정 기간 거래금액 * 수익률이 높은 상위 가상화폐만 거래
+                                    playable_market_list[market] = ((series['volume'][-amount_calc_period:]*series['close'][-amount_calc_period:]).sum())*(series['close'][-1]/series['close'][-amount_calc_period*2]-1)
                                     playable_market_list = sorted(playable_market_list.items(), key=lambda item: item[1], reverse=True)
                                     playable_market_list = {k: v for k, v in playable_market_list}
+
+
+                                if 1:
+                                    # 마켓 쇼크가 발생한 경우 일단 포지션 정리
+                                    market_shock_threshold = 0.1
+                                    market_shock_ratio = sum([1 if value > 0.0 else 0 for value in playable_market_list.values()])/len(playable_market_list)
+                                    if market_shock_ratio < market_shock_threshold:
+                                        market_shock = True
+
+                                    if idx_mrk == 0:
+                                        print('Maket Shock Ratio: %s / %s'%(round(market_shock_ratio,2), market_shock_threshold))
 
                                 # 최신 데이터에 시장가 적용
                                 if 0:
@@ -459,10 +472,19 @@ class BatchManager():
                                     signal = False
 
                                     # 강제로 모든 포지션을 비우는 경우
-                                    if EMPTY_ALL_POSITION:
+                                    if EMPTY_ALL_POSITION or market_shock == True:
+
                                         if market in balance_list:
                                             signal = 'SELL'
-                                            msg = 'EMPTY_ALL_POSITION %s'%(market)
+
+                                            if EMPTY_ALL_POSITION:
+                                                msg = 'EMPTY_ALL_POSITION(%s)'%(market)
+                                            elif market_shock == True:
+                                             msg = 'MARKET_SHOCK HAPPENED(%s, %s/%s)'%(market, market_shock_ratio, market_shock_threshold)
+
+                                        if market_shock == True:
+                                            market_shock = False
+
                                     else:
                                         # 현금이 최소 단위의 금액 이상 있는 경우 BUY 할 수 있음
                                         if float(balance[position_idx_nm][currency+'-'+currency]) > buy_amount_unit:
@@ -475,7 +497,6 @@ class BatchManager():
 
                                                     if loop_cnt % 10 == 0:
                                                         print("현재 %s/%s 포지션 보유중으로 %s 추가 매수 불가"%(balance_num, max_balance_num, market))
-
                                                     pass
 
                                                 else:
@@ -490,7 +511,7 @@ class BatchManager():
                                                         else:
                                                             signal = sm.get_momentum_z_buy_signal(series=series, series_num=series_num
                                                                                                   , short_term=short_term, long_term=long_term
-                                                                                                  , base=0.0)
+                                                                                                  , base=0.1)
 
                                                         # 해당 코인을 보유하고 있지 않은 경우 매수
                                                         if market not in balance_list:
@@ -542,7 +563,7 @@ class BatchManager():
                                                     else:
                                                         signal = sm.get_momentum_z_buy_signal(series=series, series_num=series_num
                                                                                               , short_term=sell_short_term, long_term=sell_long_term
-                                                                                              , base=0.0)
+                                                                                              , base=0.1)
                                                     #print('수익 실현 시도:', market, signal, round(expected_profit/profit_multiple*100,2), round(series['close'][-1],2), round(series['close'][-sell_short_term:].mean(),2), round(series['close'][-sell_long_term:].mean(),2))
 
                                                     # 골든 크로스 해지, 정배열이 없어지면 모멘텀이 사라졌다고 판단
@@ -597,17 +618,17 @@ class BatchManager():
                                         if EMPTY_ALL_POSITION and balance_num == 1:
                                             sys.exit()
 
-                                    if self.SIMULATION == True and idx_mrk == 0 and loop_cnt % 10 == 0:
-                                        print("----------------------My Balance Status(loop_cnt: %s, balance_num: %s)----------------------"%(loop_cnt, balance_num))
-                                        cash_amount = 0.0
-                                        asset_amount = 0.0
-                                        for idx, row in enumerate(balance.iterrows()):
-                                            #print(str(idx) + " " + row[0] + ", balacne: " + str(row[1]['balance']) + ", avg_price: " + str(row[1]['avg_price']))
-                                            if row[0] == currency+'-'+currency:
-                                                cash_amount += row[1]['balance']
-                                            else:
-                                                asset_amount += row[1]['balance']*db.get_ticker(row[0], loop_cnt)['close'][0]
-                                        print("-----------------------Total Amount: %s(Cash: %s, Asset: %s) -------------------------"%(format(round(cash_amount+asset_amount), ','), format(round(cash_amount), ','), format(round(asset_amount), ',')))
+                                        if self.SIMULATION == True and idx_mrk == 0 and loop_cnt % 10 == 0:
+                                            print("-----------------------My Balance Status (time: %s, loop_cnt: %s, balance_num: %s)----------------------"%(new_idx, loop_cnt, balance_num))
+                                            cash_amount = 0.0
+                                            asset_amount = 0.0
+                                            for idx, row in enumerate(balance.iterrows()):
+                                                #print(str(idx) + " " + row[0] + ", balacne: " + str(row[1]['balance']) + ", avg_price: " + str(row[1]['avg_price']))
+                                                if row[0] == currency+'-'+currency:
+                                                    cash_amount += row[1]['balance']
+                                                else:
+                                                    asset_amount += row[1]['balance']*db.get_ticker(row[0], loop_cnt)['close'][0]
+                                            print("-----------------------Total Amount: %s (Cash: %s, Asset: %s) -------------------------"%(format(round(cash_amount+asset_amount), ','), format(round(cash_amount), ','), format(round(asset_amount), ',')))
 
 
                         # 일시적으로 거래가 정지된 마켓은 예외 대상으로 등록
