@@ -249,7 +249,12 @@ class BatchManager():
 
     def loop_procedures(self, READ_BALANCE=True, READ_MARKET=True, READ_DATA=True, ANALYZE_DATA=True, TRADE_COIN=False
                         , EMPTY_ALL_POSITION=False, CALL_TERM_APPLY=False, SELL_SIGNAL=False, RE_BID_TYPE='PRICE'
+                        , PARAMETERS=None
                         , TEST_MARKET=None, loop_num=float('inf')):
+
+        # 알고리즘을 위한 파라미터가 넘어오지 않는 경우
+        if PARAMETERS is None:
+            return False
 
         ############################################################################
         db = DBManager.DBManager()
@@ -271,7 +276,7 @@ class BatchManager():
         # balance 정보에서 인덱스로 사용할 컬럼명
         balance_idx_nm1 = 'unit_currency'
         balance_idx_nm2 = 'currency'
-        max_balance_num = 200
+        max_balance_num = PARAMETERS['BM']['max_balance_num'] # 200
 
         bm = BalanceManager.BalanceManager(self.PRINT_BALANCE_STATUS_LOG, self.SIMULATION)
         bm.set_api(api=api)
@@ -294,7 +299,7 @@ class BatchManager():
         interval_val_long = '10'
         interval_unit_short = 'minutes'
         interval_val_short = '1'
-        count = 100  # 최대 200개
+        count = PARAMETERS['DM']['count'] # 100  # 최대 200개
 
         last_idx_nm1 = 'trade_date_kst'
         last_idx_nm2 = 'trade_time_kst'
@@ -310,30 +315,29 @@ class BatchManager():
         dm_short.set_parameters_for_series(interval_unit=interval_unit_short, interval_val=interval_val_short, count=count, series_idx_nm=series_idx_nm, last_idx_nm1=last_idx_nm1, last_idx_nm2=last_idx_nm2)
 
         ############################################################################
-        short_term = 5
-        long_term = 7
+        short_term = PARAMETERS['SM']['short_term'] # 5
+        long_term = PARAMETERS['SM']['long_term'] # 7
         short_term_momentum_threshold = 0.98 # 값이 작을 수록 빠르게 진입 & 빠르게 탈출
         long_term_momentum_threshold = 0.97 # 값이 작을 수록 빠르게 진입 & 빠르게 탈출
         volume_momentum_threshold = None # 1.0
 
-        sell_short_term = 5
-        sell_long_term = 10
+        sell_short_term = PARAMETERS['SM']['sell_short_term'] # 5
+        sell_long_term = PARAMETERS['SM']['sell_long_term'] # 10
 
         sm = SignalMaker.SignalMaker()
 
         ############################################################################
         # 매매 시 사용 정보
         position_idx_nm = 'balance'
-        buy_amount_multiple = 10
+        buy_amount_multiple = PARAMETERS['TM']['buy_amount_multiple'] # 10
         buy_amount_unit = 10000.0*buy_amount_multiple
-        additional_position_threshold = -0.145
+        target_profit = PARAMETERS['TM']['target_profit'] # 0.039
+        additional_position_threshold = PARAMETERS['TM']['additional_position_threshold'] # -0.145
 
         tm = TradeManager.TradeManager(self.SIMULATION)
         tm.set_api(api=api)
         tm.set_db(db=db)
         tm.set_parameters(buy_amount_unit=buy_amount_unit, position_idx_nm=position_idx_nm)
-
-        target_profit = 0.039
 
         ############################################################################
         bot = Telegram.Telegram(self.SIMULATION)
@@ -349,11 +353,13 @@ class BatchManager():
         ############################################################################
         market_shock = False
         playable_market_list = {}
-        amount_calc_period = 3
+        current_period = PARAMETERS['ETC']['current_period'] # 3
         (markets, markets_num, markets_list) = mm.get_markets_info()
         for market in markets.index:
             (series, series_num) = dm_short.get_series_info(market=market)
-            playable_market_list[market] = ((series['volume'][-amount_calc_period:]*series['close'][-amount_calc_period:]).sum())*(series['close'][-1]/series['close'][-amount_calc_period*2]-1)
+            playable_market_list[market] = ((series['volume'][-current_period:]*series['close'][-current_period:]).sum())*(series['close'][-1]/series['close'][-current_period*2]-1)
+
+        market_shock_threshold = PARAMETERS['ETC']['market_shock_threshold'] # 0.1
 
         ############################################################################
 
@@ -361,6 +367,7 @@ class BatchManager():
         except_market_list = []
         recently_sold_list = {}
         for n in range(1):
+
             loop_cnt = 0
             while loop_cnt < loop_num:
 
@@ -378,12 +385,9 @@ class BatchManager():
                         for idx_mrk, market in enumerate(markets.index):
 
                             # 특정 코인으로 테스트하기 위함
-                            if TEST_MARKET is None:
-                                pass
-                            else:
-                                if market == TEST_MARKET:
-                                    pass
-                                else:
+                            # 테스트 마켓을 파라미터로 받는 경우는 해당 마켓을 제외하고는 패스
+                            if TEST_MARKET is not None:
+                                if market != TEST_MARKET:
                                     continue
 
                             # 매매 성공 시 Telegram 메세지
@@ -403,20 +407,17 @@ class BatchManager():
                                     (series, series_num) = dm_short.get_series_info(market=market, curr=new_idx)
                                     if loop_cnt % 10 == 0:
                                         # 최근 특정 기간 거래금액 * 수익률이 높은 상위 가상화폐만 거래
-                                        playable_market_list[market] = ((series['volume'][-amount_calc_period:]*series['close'][-amount_calc_period:]).sum())*(series['close'][-1]/series['close'][-amount_calc_period*2]-1)
+                                        playable_market_list[market] = ((series['volume'][-current_period:] * series['close'][-current_period:]).sum()) * (series['close'][-1] / series['close'][-current_period*2] - 1.0)
                                         playable_market_list = sorted(playable_market_list.items(), key=lambda item: item[1], reverse=True)
                                         playable_market_list = {k: v for k, v in playable_market_list}
 
-
-                                    if 1:
                                         # 마켓 쇼크가 발생한 경우 일단 포지션 정리
-                                        market_shock_threshold = 0.1
-                                        market_shock_ratio = sum([1 if value > 0.0 else 0 for value in playable_market_list.values()])/len(playable_market_list)
+                                        market_shock_ratio = sum([1 if value > 0.0 else 0 for value in playable_market_list.values()]) / len(playable_market_list)
                                         if market_shock_ratio < market_shock_threshold:
                                             market_shock = True
 
                                         if idx_mrk == 0:
-                                            print('Maket Shock Ratio: %s / %s'%(round(market_shock_ratio,2), market_shock_threshold))
+                                            print('Maket Shock Ratio: %s / %s'%(round(market_shock_ratio, 2), market_shock_threshold))
 
                                     # 최신 데이터에 시장가 적용
                                     if 0:
@@ -439,9 +440,9 @@ class BatchManager():
                                             price_lag = 5
                                             surge_rate_limit = 0.10
 
-                                            surge_rate = series['close'][-1]/min(series['close'][-price_lag:])-1
+                                            surge_rate = series['close'][-1] / min(series['close'][-price_lag:]) - 1.0
                                             if surge_rate < surge_rate_limit:
-                                                print("%s은 최근 매도 리스트에서 제외(PRICE, %s pro)."%(market, round(surge_rate*100,2)))
+                                                print("%s은 최근 매도 리스트에서 제외(PRICE, %s pro)."%(market, round(surge_rate*100, 2)))
                                                 recently_sold_list.pop(market)
 
                                         # 최근 매도한 마켓 리스트 중 일정 시간이 지나면 재매수할 수 있음
@@ -457,12 +458,12 @@ class BatchManager():
                                     if series is False:
                                         if CALL_TERM_APPLY:
                                             # 너무 자주 call error 발생 시 주기 확대
-                                            call_err_score = call_err_score-1.0
+                                            call_err_score = call_err_score - 1.0
                                             if call_err_score < call_err_neg_score_threshold:
                                                 # 최대 0.1초까지 증가 시킬 수 있음
-                                                call_term = min(call_term*1.1,0.1)
+                                                call_term = min(call_term * 1.1, 0.1)
                                                 call_err_score = 0
-                                                print("API call term extended to %s"%(round(call_term,4)))
+                                                print("API call term extended to %s"%(round(call_term, 4)))
                                         print("No data series.")
                                         continue
 
@@ -473,7 +474,7 @@ class BatchManager():
                                             if call_err_score > call_err_pos_score_threshold:
                                                 call_term = call_term * 0.9
                                                 call_err_score = 0
-                                                print("API call term reduced to %s"%(round(call_term,4)))
+                                                print("API call term reduced to %s"%(round(call_term, 4)))
 
                                     if ANALYZE_DATA:
                                         # BUY, SELL
@@ -534,18 +535,18 @@ class BatchManager():
 
                                                             else:
                                                                 # 손실률이 기준 이하인 경우 추가 매수
-                                                                expected_loss = series['close'][-1]/float(balance['avg_price'][market])-1
+                                                                expected_loss = series['close'][-1] / float(balance['avg_price'][market]) - 1.0
                                                                 if expected_loss < additional_position_threshold:
                                                                     #print('추가 매수 시도:', market, signal, round(expected_loss*100,2), round(series['close'][-1],2), round(series['close'][-short_term:].mean(),2), round(series['close'][-long_term:].mean(),2))
                                                                     # 시장 조정 후 골든 크로스로 변경되는 경우 물타기
                                                                     if signal == 'BUY':
-                                                                        msg = "BUY: loss of %s is %s pro. buy addtional position."%(market, round(expected_loss*100,2))
+                                                                        msg = "BUY: loss of %s is %s pro. buy addtional position."%(market, round(expected_loss*100, 2))
                                                                         trade_cd = 2
 
                                                                 # 단위 금액보다 적은 금액이 매수된 경우 추가 매수
-                                                                if round(buy_amount_unit-float(balance['avg_price'][market])*float(balance['balance'][market]),-4)/10000.0 > 0:
+                                                                if round(buy_amount_unit - float(balance['avg_price'][market])*float(balance['balance'][market]), -4) / 10000.0 > 0:
                                                                     if signal == 'BUY':
-                                                                        msg = "BUY: less of %s is %s won. buy addtional position."%(market, round(buy_amount_unit-series['close'][-1]*float(balance['balance'][market]),-4))
+                                                                        msg = "BUY: less of %s is %s won. buy addtional position."%(market, round(buy_amount_unit-series['close'][-1] * float(balance['balance'][market]), -4))
                                                                         trade_cd = 3
 
                                             # 해당 코인을 보유하고 있는 경우 SELL 할 수 있음
@@ -556,11 +557,11 @@ class BatchManager():
 
                                                     # 물렸던 경우 목표 수익률 보다 낮은 수준에서 차익 실현
                                                     profit_multiple = 1.0
-                                                    if series['close'][-1]*float(balance['balance'][market]) > buy_amount_unit*2:
+                                                    if series['close'][-1] * float(balance['balance'][market]) > buy_amount_unit * 2:
                                                         profit_multiple = 1.5
 
                                                     # 목표한 수익률 달성 시 매도
-                                                    expected_profit = (series['close'][-1]/float(balance['avg_price'][market])-1)*profit_multiple
+                                                    expected_profit = (series['close'][-1] / float(balance['avg_price'][market]) - 1.0) * profit_multiple
                                                     if expected_profit > target_profit:
 
                                                         # 골든 크로스 BUY 시그널 계산
@@ -577,7 +578,7 @@ class BatchManager():
                                                         # 골든 크로스 해지, 정배열이 없어지면 모멘텀이 사라졌다고 판단
                                                         if signal != 'BUY':
                                                             signal = 'SELL'
-                                                            msg = "SELL: target profit(%s/%s pro, %s won) of %s is reached."%(round(expected_profit/profit_multiple*100,2), round(target_profit*100,2), round(float(balance['balance'][market])*series['close'][-1]), market)
+                                                            msg = "SELL: target profit(%s/%s pro, %s won) of %s is reached."%(round(expected_profit/profit_multiple*100, 2), round(target_profit*100,2), round(float(balance['balance'][market]) * series['close'][-1]), market)
                                                             trade_cd = -2
                                                         else:
                                                             signal = False
@@ -590,8 +591,8 @@ class BatchManager():
                                                                                                   , short_term=sell_short_term, long_term=sell_long_term
                                                                                                   , base=0.0)
                                                         if signal == 'SELL':
-                                                            expected_profit = float(balance['avg_price'][market])/series['close'][-1]-1
-                                                            msg = "SELL: dead_cross of %s(%s pro)"%(market, round(expected_profit*100,2))
+                                                            expected_profit = float(balance['avg_price'][market]) / series['close'][-1] - 1.0
+                                                            msg = "SELL: dead_cross of %s(%s pro)"%(market, round(expected_profit*100, 2))
                                                             trade_cd = -1
 
                                             if 0:
@@ -660,7 +661,7 @@ class BatchManager():
 
                 if self.SIMULATION == False:
                     if loop_cnt % 10 == 0:
-                        print("Finished %s Loop: %s seconds elapsed"%(loop_cnt, round(end_tm-start_tm,2)))
+                        print("Finished %s Loop: %s seconds elapsed"%(loop_cnt, round(end_tm-start_tm, 2)))
                         print("current balance num: %s(%s)" % (balance_num, balance_list))
                         for key_idx, key in enumerate(playable_market_list):
                             if key_idx < 40 and playable_market_list[key] > 100000000.0:
@@ -671,99 +672,4 @@ class BatchManager():
         ############################################################################
         db.disconnect()
 
-    def algorithm_test(self, loop_num=float('inf'), algorithm='golden_cross'):
-
-        ############################################################################
-        db = DBManager.DBManager()
-        db.connet(host="127.0.0.1", port=3306, database="upbit", user="root", password="ryumaria")
-
-        total_profit = 0
-
-        interval_unit = 'minutes'
-        interval_val = '10'
-
-        playable_market_list = {}
-        amount_calc_period = 3
-        market_list = db.get_market_list()
-        #for market in market_list:
-            #(series, series_num) = dm.get_series_info(market=market)
-            #playable_market_list[market] = (series['volume'][-amount_calc_period:] * series['close'][-amount_calc_period:]).sum()
-
-        loop_cnt = 0
-        while loop_cnt < loop_num:
-
-            market_list = db.get_market_list()
-            for market in market_list:
-                df_curr = db.get_ticker(market=market, seq=loop_cnt)
-                df_series = db.get_candles(market=market, curr=(df_curr['date'].iloc[0]+'T'+df_curr['time'].iloc[0]), interval_unit=interval_unit, interval_val=interval_val)
-                #print(df_series)
-
-                df_series['pct'] = 0.0
-                df_series['pct_acc'] = 0.0
-                for idx in range(len(df_series.index)):
-                    curr_value = df_series.iloc[idx]['close']
-                    if idx == 0:
-                        first_value = curr_value
-                    else:
-                        df_series['pct'][idx] = curr_value/prev_value-1
-                        df_series['pct_acc'][idx] = curr_value/first_value-1
-                    prev_value = curr_value
-                    #df_series_transpose = df_series.transpose()
-
-                target_profit = 0.05
-                signal = False
-                in_value = 0
-                if algorithm == 'golden_cross':
-                    short_term = 5
-                    long_term = 20
-                    for idx in range(len(df_series.index) - long_term):
-                        curr_value = df_series.iloc[idx+long_term]['close']
-                        short_avg = df_series.iloc[idx+(long_term-short_term):idx+long_term]['close'].mean()
-                        long_avg = df_series.iloc[idx:idx+long_term]['close'].mean()
-
-                        if curr_value > short_avg and short_avg > long_avg and signal == False:
-                            signal = True
-                            in_value = curr_value
-
-                        profit = curr_value/in_value-1
-                        if profit > target_profit and signal == True:
-                            #print(market, 'profit', round(min(profit, target_profit),4))
-                            total_profit += min(profit, target_profit)
-
-                            signal = False
-                            in_value = 0
-
-                        if idx == len(df_series.index) - long_term - 1 and signal == True:
-                            #print(market, 'loss', round(profit-1,4))
-                            total_profit += profit-1
-            print('total_profit: ', round(total_profit,4))
-        """ 
-        else:
-            cnt = 0
-            prev_max_idx = -1
-            prev_min_idx = -1
-            window_size = 120
-            for idx in range(len(df_series.index)-window_size):
-                clip = df_series.iloc[idx:idx+window_size]
-                max_idx = clip['pct_acc'].idxmax()
-                min_idx = clip['pct_acc'].idxmin()
-
-                start_data = df_series.iloc[idx]
-                max_data = df_series.iloc[max_idx]
-                min_data = df_series.iloc[min_idx]
-                end_data = df_series.iloc[idx+window_size]
-
-                max_profit = (1+max_data['pct_acc'])/(1+start_data['pct_acc'])
-                if max_profit > target_profit:
-                    if prev_max_idx != max_idx:
-                        cnt += 1
-
-                        msg = str(cnt)+"\t"+market+"\t"+str(max_idx-idx)+"\t"+start_data['date']+"\t"+start_data['time']+"\t"+max_data['date']+"\t"+max_data['time']+"\t"+end_data['date']+"\t"+end_data['time']+"\t"+str(round(max_profit,4))
-                        for row in clip.iterrows():
-                            msg = msg+"\t"+str(round(row[1]['pct_acc'],4))
-                        #print(msg)
-                        prev_max_idx = max_idx
-        """
-
-        ############################################################################
-        db.disconnect()
+        return True

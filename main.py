@@ -34,8 +34,16 @@ if __name__ == '__main__':
         SELL_SIGNAL = False
         RE_BID_TYPE = 'PRICE' # 'PRICE', 'TIME'
 
+        PARAMETERS = {'BM': {}, 'DM': {}, 'SM': {}, 'TM': {}, 'ETC': {}}
+        PARAMETERS['BM'] = {'max_balance_num': 200}
+        PARAMETERS['DM'] = {'count': 100}
+        PARAMETERS['SM'] = {'short_term': 5, 'long_term': 7, 'sell_short_term': 5, 'sell_long_term': 10}
+        PARAMETERS['TM'] = {'buy_amount_multiple': 10, 'target_profit': 0.039, 'additional_position_threshold': -0.145}
+        PARAMETERS['ETC'] = {'current_period': 3, 'market_shock_threshold': 0.1}
+
         batch.loop_procedures(READ_BALANCE=READ_BALANCE, READ_MARKET=READ_MARKET, READ_DATA=READ_DATA, ANALYZE_DATA=ANALYZE_DATA, TRADE_COIN=TRADE_COIN
                               , EMPTY_ALL_POSITION=EMPTY_ALL_POSITION, CALL_TERM_APPLY=CALL_TERM_APPLY, SELL_SIGNAL=SELL_SIGNAL, RE_BID_TYPE=RE_BID_TYPE
+                              , PARAMETERS=PARAMETERS
                               )#, TEST_MARKET='KRW-GRS')
 
     if 0:
