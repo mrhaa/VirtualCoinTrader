@@ -122,7 +122,7 @@ class DBManager():
             sql_arg = (cd, nm_kr, nm_us, nm_kr, nm_us)
             self.execute_query(sql, sql_arg)
 
-    def update_prices(self, table_nm, market, interval_unit=None, interval_val=None, seq=None, series=None, columns=None):
+    def update_prices(self, table_nm, no=None, seq=None, market=None, interval_unit=None, interval_val=None, series=None, columns=None):
 
         cd = market
 
@@ -136,16 +136,16 @@ class DBManager():
             volume = row[1][columns[4]]
 
             if table_nm == 'price_spot':
-                sql = "INSERT INTO %s (seq, cd, date, time, open, close, low, high, volume, create_time, update_time) " \
-                      "VALUES (%s, '%s', '%s', '%s', %s, %s, %s, %s, %s, now(), now()) " \
+                sql = "INSERT INTO %s (no, seq, cd, date, time, open, close, low, high, volume, create_time, update_time) " \
+                      "VALUES (%s, %s, '%s', '%s', '%s', %s, %s, %s, %s, %s, now(), now()) " \
                       "ON DUPLICATE KEY UPDATE open = %s, close = %s, low = %s, high = %s, volume = %s, update_time = now()"
-                sql_arg = (table_nm, seq, cd, date, time, open, close, low, high, volume, open, close, low, high, volume)
+                sql_arg = (table_nm, no, seq, cd, date, time, open, close, low, high, volume, open, close, low, high, volume)
 
             elif table_nm == 'price_hist':
-                sql = "INSERT INTO %s (cd, interval_unit, interval_val, date, time, open, close, low, high, volume, create_time, update_time) " \
-                      "VALUES ('%s', '%s', '%s', '%s', '%s', %s, %s, %s, %s, %s, now(), now()) " \
+                sql = "INSERT INTO %s (no, cd, interval_unit, interval_val, date, time, open, close, low, high, volume, create_time, update_time) " \
+                      "VALUES (%s, '%s', '%s', '%s', '%s', '%s', %s, %s, %s, %s, %s, now(), now()) " \
                       "ON DUPLICATE KEY UPDATE open = %s, close = %s, low = %s, high = %s, volume = %s, update_time = now()"
-                sql_arg = (table_nm, cd, interval_unit, interval_val, date, time, open, close, low, high, volume, open, close, low, high, volume)
+                sql_arg = (table_nm, no, cd, interval_unit, interval_val, date, time, open, close, low, high, volume, open, close, low, high, volume)
 
             self.execute_query(sql, sql_arg)
 
@@ -187,18 +187,19 @@ class DBManager():
         else:
             return list(ret['cd'])
 
-    def get_candles(self, market, curr=None, to=None, interval_unit='minutes', interval_val='1', count=200):
+    def get_candles(self, market, no=0, curr=None, interval_unit='minutes', interval_val='1', count=200):
 
         if curr == None:
-            ret = self.get_ticker(market=market, seq=0)
+            ret = self.get_ticker(market=market, no=no, seq=0)
             curr = ret['date'].iloc[0]+'T'+ret['time'].iloc[0]
 
         sql = "SELECT cd, date, time, open, close, low, high, volume " \
               "  FROM price_hist" \
-              " WHERE cd = '%s'" \
+              " WHERE no = %s" \
+              "   AND cd = '%s'" \
               "   AND interval_unit = '%s'" \
               "   AND interval_val = '%s'" \
-              "   AND concat(date, 'T', time) < '%s'"%(market, interval_unit, interval_val, curr)
+              "   AND concat(date, 'T', time) < '%s'"%(no, market, interval_unit, interval_val, curr)
         #print(sql)
         ret = self.select_query(sql, columns=('cd', 'date', 'time', 'open', 'close', 'low', 'high', 'volume'))
 
@@ -207,13 +208,14 @@ class DBManager():
         else:
             return ret
 
-    def get_ticker(self, market, seq=None):
+    def get_ticker(self, market, no=0, seq=0):
 
         sql = "SELECT cd, date, time, open, close, low, high, volume " \
               "  FROM price_spot" \
               " WHERE cd = '%s'" \
+              "   AND no = %s" \
               "   AND seq = %s" \
-              " ORDER BY date, time" % (market, seq)
+              " ORDER BY date, time" % (market, no, seq)
         #print(sql)
         ret = self.select_query(sql, columns=('cd', 'date', 'time', 'open', 'close', 'low', 'high', 'volume'))
 
@@ -222,12 +224,13 @@ class DBManager():
         else:
             return ret
 
-    def look_up_all_coins(self):
+    def look_up_all_coins(self, no=0):
 
         sql = "SELECT i.cd, i.kr_nm, i.us_nm" \
               "  FROM item i, price_hist ph" \
               " WHERE i.cd = ph.cd" \
-              " GROUP BY i.cd"
+              "   AND ph.no = %s" \
+              " GROUP BY i.cd" % (no)
 
         #print(sql)
         ret = self.select_query(sql, columns=('market', 'kr_nm', 'us_nm'))
@@ -236,5 +239,28 @@ class DBManager():
             return None
         else:
             return ret
+
+    def max_no(self):
+
+        sql = "SELECT max(no)" \
+              "  FROM price_spot" \
+
+        #print(sql)
+        ret = self.select_query(sql).iloc[0, 0]
+
+        return ret
+
+    def max_seq(self, no=0):
+
+        sql = "SELECT max(seq)" \
+              "  FROM price_spot" \
+              " WHERE no= %s" % (no)
+
+        #print(sql)
+        ret = self.select_query(sql).iloc[0, 0]
+
+        return ret
+
+
 
 

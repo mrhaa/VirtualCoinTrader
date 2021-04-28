@@ -169,8 +169,8 @@ class BatchManager():
         ############################################################################
         # series 정보에서 인덱스로 사용할 컬럼명
         series_idx_nm = 'candle_date_time_kst'
-        interval_unit = 'minutes'
-        interval_val = '10'
+        interval_unit1 = 'minutes'
+        interval_val1 = '10'
         interval_unit2 = 'minutes'
         interval_val2 = '1'
         count = 100
@@ -180,13 +180,19 @@ class BatchManager():
 
         dm = DataManager.DataManager(self.PRINT_DATA_LOG)
         dm.set_api(api=api)
-        dm.set_parameters_for_series(interval_unit=interval_unit, interval_val=interval_val, count=count, series_idx_nm=series_idx_nm, last_idx_nm1=last_idx_nm1, last_idx_nm2=last_idx_nm2)
+        dm.set_parameters_for_series(interval_unit=interval_unit1, interval_val=interval_val1, count=count, series_idx_nm=series_idx_nm, last_idx_nm1=last_idx_nm1, last_idx_nm2=last_idx_nm2)
 
         dm2 = DataManager.DataManager(self.PRINT_DATA_LOG)
         dm2.set_api(api=api)
         dm2.set_parameters_for_series(interval_unit=interval_unit2, interval_val=interval_val2, count=count, series_idx_nm=series_idx_nm, last_idx_nm1=last_idx_nm1, last_idx_nm2=last_idx_nm2)
 
         ############################################################################
+
+        max_no = db.max_no()
+        if max_no is None:
+            no = 0
+        else:
+            no = max_no + 1
 
         loop_cnt = 0
         while loop_cnt < loop_num:
@@ -218,11 +224,11 @@ class BatchManager():
                                 print("No data series.")
                                 continue
                             else:
-                                db.update_prices(table_nm='price_spot', market=market, seq=loop_cnt, series=new_low, columns=('open', 'close', 'low', 'high', 'volume'))
+                                db.update_prices(table_nm='price_spot', no=no, seq=loop_cnt, market=market, series=new_low, columns=('open', 'close', 'low', 'high', 'volume'))
                                 if loop_cnt % 1000 == 0:
-                                    db.update_prices(table_nm='price_hist', market=market, interval_unit=interval_unit, interval_val=interval_val, series=series, columns=('open', 'close', 'low', 'high', 'volume'))
+                                    db.update_prices(table_nm='price_hist', no=no, market=market, interval_unit=interval_unit1, interval_val=interval_val1, series=series, columns=('open', 'close', 'low', 'high', 'volume'))
                                 if loop_cnt % 100 == 0:
-                                    db.update_prices(table_nm='price_hist', market=market, interval_unit=interval_unit2, interval_val=interval_val2, series=series2, columns=('open', 'close', 'low', 'high', 'volume'))
+                                    db.update_prices(table_nm='price_hist', no=no, market=market, interval_unit=interval_unit2, interval_val=interval_val2, series=series2, columns=('open', 'close', 'low', 'high', 'volume'))
 
 
                     # 일시적으로 거래가 정지된 마켓은 예외 대상으로 등록
@@ -362,13 +368,20 @@ class BatchManager():
 
         ############################################################################
 
+        max_no = 0
+        if SIMULATION == True:
+            max_no = db.max_no()
+
 
         except_market_list = []
         recently_sold_list = {}
-        for n in range(1):
+        for n in range(max_no + 1):
+
+            if SIMULATION == True:
+                loop_num = db.max_seq(no=n)
 
             loop_cnt = 0
-            while loop_cnt < loop_num:
+            while loop_cnt <= loop_num:
 
                 start_tm = timer()
 
@@ -397,13 +410,13 @@ class BatchManager():
                                 if READ_DATA:
 
                                     # 시장가 취득
-                                    last = dm_short.get_last_info(market=market, seq=loop_cnt)
+                                    last = dm_short.get_last_info(market=market, no=n, seq=loop_cnt)
                                     if last is False:
                                         print("No last data.")
                                         continue
 
                                     new_idx = last['trade_date_kst'][0][:4]+'-'+last['trade_date_kst'][0][4:6]+'-'+last['trade_date_kst'][0][-2:]+'T'+last['trade_time_kst'][0][:2]+':'+last['trade_time_kst'][0][2:4]+':'+last['trade_time_kst'][0][-2:]
-                                    (series, series_num) = dm_short.get_series_info(market=market, curr=new_idx)
+                                    (series, series_num) = dm_short.get_series_info(market=market, no=n, curr=new_idx)
                                     if loop_cnt % 10 == 0:
                                         # 최근 특정 기간 거래금액 * 수익률이 높은 상위 가상화폐만 거래
                                         playable_market_list[market] = ((series['volume'][-current_period:] * series['close'][-current_period:]).sum()) * (series['close'][-1] / series['close'][-current_period] - 1.0)
@@ -639,7 +652,7 @@ class BatchManager():
                                                         asset_amount += row[1]['balance']*db.get_ticker(row[0], loop_cnt)['close'][0]
                                                 print("-----------------------Total Amount: %s (Cash: %s, Asset: %s) -------------------------"%(format(round(cash_amount+asset_amount), ','), format(round(cash_amount), ','), format(round(asset_amount), ',')))
 
-                                                if loop_cnt == 3420:
+                                                if loop_cnt == loop_num:
                                                     #sys.exit()
                                                     break
 

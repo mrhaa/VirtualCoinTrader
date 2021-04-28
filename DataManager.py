@@ -45,13 +45,13 @@ class DataManager():
 
         self.db = db
 
-    def get_series_info(self, market, curr=None, to=None):
+    def get_series_info(self, market, no=0, curr=None, to=None):
 
         # 시뮬레이션인 경우 DB에 있는 데이터를 사용
         if self.SIMULATION == False:
-            self.series = self.api.get_candles(market=market, curr=curr, to=to, interval_unit=self.interval_unit, interval_val=self.interval_val, count=self.count)
+            self.series = self.api.get_candles(market=market, to=to, interval_unit=self.interval_unit, interval_val=self.interval_val, count=self.count)
         else:
-            self.series = self.db.get_candles(market=market, curr=curr, to=to, interval_unit=self.interval_unit, interval_val=self.interval_val, count=self.count)
+            self.series = self.db.get_candles(market=market, no=no, curr=curr, interval_unit=self.interval_unit, interval_val=self.interval_val, count=self.count)
 
         if self.series is not False:
             #
@@ -83,13 +83,13 @@ class DataManager():
         return (self.series, self.series_num)
 
 
-    def get_last_info(self, market, seq=None):
+    def get_last_info(self, market, no=0, seq=0):
 
         # 시뮬레이션인 경우 DB에 있는 데이터를 사용
         if self.SIMULATION == False:
             self.last = self.api.get_ticker(market=market)
         else:
-            self.last = self.db.get_ticker(market=market, seq=seq)
+            self.last = self.db.get_ticker(market=market, no=no, seq=seq)
 
         if self.last is not False:
             if self.SIMULATION == False:

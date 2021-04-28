@@ -56,7 +56,3 @@ if __name__ == '__main__':
         batch.make_db_for_learner(READ_MARKET, READ_DATA)
 
 
-    if 0:
-        batch.algorithm_test()
-
-

@@ -155,7 +155,7 @@ class UPbit:    # 클래스
         else:
             return False
 
-    def get_ticker(self, market, seq=None):
+    def get_ticker(self, market):
 
         querystring = {}
         querystring['markets'] = market
@@ -178,7 +178,7 @@ class UPbit:    # 클래스
         else:
             return False
 
-    def get_candles(self, market, curr=None, to=None, interval_unit='minutes', interval_val='1', count=200):
+    def get_candles(self, market, to=None, interval_unit='minutes', interval_val='1', count=200):
 
         querystring = {}
         querystring['market'] = market
