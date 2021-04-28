@@ -357,7 +357,7 @@ class BatchManager():
         (markets, markets_num, markets_list) = mm.get_markets_info()
         for market in markets.index:
             (series, series_num) = dm_short.get_series_info(market=market)
-            playable_market_list[market] = ((series['volume'][-current_period:]*series['close'][-current_period:]).sum())*(series['close'][-1]/series['close'][-current_period*2]-1)
+            playable_market_list[market] = ((series['volume'][-current_period:] * series['close'][-current_period:]).sum()) * (series['close'][-1] / series['close'][-current_period] - 1.0)
 
         market_shock_threshold = PARAMETERS['ETC']['market_shock_threshold'] # 0.1
 
@@ -407,7 +407,7 @@ class BatchManager():
                                     (series, series_num) = dm_short.get_series_info(market=market, curr=new_idx)
                                     if loop_cnt % 10 == 0:
                                         # 최근 특정 기간 거래금액 * 수익률이 높은 상위 가상화폐만 거래
-                                        playable_market_list[market] = ((series['volume'][-current_period:] * series['close'][-current_period:]).sum()) * (series['close'][-1] / series['close'][-current_period*2] - 1.0)
+                                        playable_market_list[market] = ((series['volume'][-current_period:] * series['close'][-current_period:]).sum()) * (series['close'][-1] / series['close'][-current_period] - 1.0)
                                         playable_market_list = sorted(playable_market_list.items(), key=lambda item: item[1], reverse=True)
                                         playable_market_list = {k: v for k, v in playable_market_list}
 
