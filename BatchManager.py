@@ -23,7 +23,7 @@ import DBManager
 
 class BatchManager():
     def __init__(self, PRINT_BALANCE_STATUS_LOG=True, PRINT_TRADABLE_MARKET_LOG=True, PRINT_DATA_LOG=False
-                 , PROCEDURE_ERR_LOG=True, API_ERR_LOG=False, SIMULATION=False):
+                 , PROCEDURE_ERR_LOG=True, API_ERR_LOG=False):
         print("Generate BatchManager.")
 
         self.PRINT_BALANCE_STATUS_LOG = PRINT_BALANCE_STATUS_LOG
@@ -31,8 +31,6 @@ class BatchManager():
         self.PRINT_DATA_LOG = PRINT_DATA_LOG
         self.PROCEDURE_ERR_LOG = PROCEDURE_ERR_LOG
         self.API_ERR_LOG = API_ERR_LOG
-
-        self.SIMULATION = SIMULATION
 
     def __del__(self):
         print("Destroy BatchManager.")
@@ -247,7 +245,7 @@ class BatchManager():
         ############################################################################
         db.disconnect()
 
-    def loop_procedures(self, READ_BALANCE=True, READ_MARKET=True, READ_DATA=True, ANALYZE_DATA=True, TRADE_COIN=False
+    def loop_procedures(self, SIMULATION=False, READ_BALANCE=True, READ_MARKET=True, READ_DATA=True, ANALYZE_DATA=True, TRADE_COIN=False
                         , EMPTY_ALL_POSITION=False, CALL_TERM_APPLY=False, SELL_SIGNAL=False, RE_BID_TYPE='PRICE'
                         , PARAMETERS=None
                         , TEST_MARKET=None, loop_num=float('inf')):
@@ -261,7 +259,7 @@ class BatchManager():
         db.connet(host="127.0.0.1", port=3306, database="upbit", user="root", password="ryumaria")
 
         ############################################################################
-        if self.SIMULATION == False:
+        if SIMULATION == False:
             server_url = "https://api.upbit.com"
             api = UPbit.UPbit(server_url=server_url, API_PRINT_ERR=self.API_ERR_LOG)
             (access_key, secret_key) = api.get_key()
@@ -278,7 +276,7 @@ class BatchManager():
         balance_idx_nm2 = 'currency'
         max_balance_num = PARAMETERS['BM']['max_balance_num'] # 200
 
-        bm = BalanceManager.BalanceManager(self.PRINT_BALANCE_STATUS_LOG, self.SIMULATION)
+        bm = BalanceManager.BalanceManager(self.PRINT_BALANCE_STATUS_LOG, SIMULATION)
         bm.set_api(api=api)
         bm.set_db(db=db)
         bm.set_parameters(currency=currency, balance_idx_nm1=balance_idx_nm1, balance_idx_nm2=balance_idx_nm2, max_balance_num=max_balance_num)
@@ -287,7 +285,7 @@ class BatchManager():
         # 거래 가능한 coin 정보에서 인덱스로 사용할 컬럼명
         market_idx_nm = 'market'
 
-        mm = MarketManager.MarketManager(self.PRINT_TRADABLE_MARKET_LOG, self.SIMULATION)
+        mm = MarketManager.MarketManager(self.PRINT_TRADABLE_MARKET_LOG, SIMULATION)
         mm.set_api(api=api)
         mm.set_db(db=db)
         mm.set_parameters(currency=currency, market_idx_nm=market_idx_nm)
@@ -304,12 +302,12 @@ class BatchManager():
         last_idx_nm1 = 'trade_date_kst'
         last_idx_nm2 = 'trade_time_kst'
 
-        dm_long = DataManager.DataManager(self.PRINT_DATA_LOG, self.SIMULATION)
+        dm_long = DataManager.DataManager(self.PRINT_DATA_LOG, SIMULATION)
         dm_long.set_api(api=api)
         dm_long.set_db(db=db)
         dm_long.set_parameters_for_series(interval_unit=interval_unit_long, interval_val=interval_val_long, count=count, series_idx_nm=series_idx_nm, last_idx_nm1=last_idx_nm1, last_idx_nm2=last_idx_nm2)
 
-        dm_short = DataManager.DataManager(self.PRINT_DATA_LOG, self.SIMULATION)
+        dm_short = DataManager.DataManager(self.PRINT_DATA_LOG, SIMULATION)
         dm_short.set_api(api=api)
         dm_short.set_db(db=db)
         dm_short.set_parameters_for_series(interval_unit=interval_unit_short, interval_val=interval_val_short, count=count, series_idx_nm=series_idx_nm, last_idx_nm1=last_idx_nm1, last_idx_nm2=last_idx_nm2)
@@ -334,13 +332,13 @@ class BatchManager():
         target_profit = PARAMETERS['TM']['target_profit'] # 0.039
         additional_position_threshold = PARAMETERS['TM']['additional_position_threshold'] # -0.145
 
-        tm = TradeManager.TradeManager(self.SIMULATION)
+        tm = TradeManager.TradeManager(SIMULATION)
         tm.set_api(api=api)
         tm.set_db(db=db)
         tm.set_parameters(buy_amount_unit=buy_amount_unit, position_idx_nm=position_idx_nm)
 
         ############################################################################
-        bot = Telegram.Telegram(self.SIMULATION)
+        bot = Telegram.Telegram(SIMULATION)
         bot.get_bot()
 
         ############################################################################
@@ -353,6 +351,7 @@ class BatchManager():
         ############################################################################
         market_shock = False
         playable_market_list = {}
+        max_playable_market = PARAMETERS['ETC']['max_playable_market'] # 40
         current_period = PARAMETERS['ETC']['current_period'] # 3
         (markets, markets_num, markets_list) = mm.get_markets_info()
         for market in markets.index:
@@ -499,7 +498,7 @@ class BatchManager():
                                             if float(balance[position_idx_nm][currency+'-'+currency]) > buy_amount_unit:
 
                                                 # 거래량이 많은 약 상위 30%이고 최근 상승 구간에 있는 코인만 매수 시도
-                                                if market in list(playable_market_list.keys())[:40] and playable_market_list[market] > 100000000.0:
+                                                if market in list(playable_market_list.keys())[:max_playable_market] and playable_market_list[market] > 100000000.0:
 
                                                     # 최대 보유 가능 종류 수량을 넘는 경우
                                                     if balance_num > max_balance_num:
@@ -610,7 +609,7 @@ class BatchManager():
                                                 tm.update_balance(balance=balance)
 
                                                 # 매매 내역을 DB에 저장(디버그를 위함)
-                                                if self.SIMULATION == False:
+                                                if SIMULATION == False:
                                                     db.save_signal(market=market, date=series.index[-1][:10], time=series.index[-1][-8:], signal=signal, trade_cd=trade_cd, price=series['close'][-1])
 
                                                     # 매매 성공
@@ -628,7 +627,7 @@ class BatchManager():
                                                 #sys.exit()
                                                 break
 
-                                            if self.SIMULATION == True and idx_mrk == 0 and loop_cnt % 10 == 0:
+                                            if SIMULATION == True and idx_mrk == 0 and loop_cnt % 10 == 0:
                                                 print("-----------------------My Balance Status (time: %s, loop_cnt: %s, balance_num: %s)----------------------"%(new_idx, loop_cnt, balance_num))
                                                 cash_amount = 0.0
                                                 asset_amount = 0.0
@@ -659,13 +658,13 @@ class BatchManager():
                 end_tm = timer()
                 # 1 Cycle Finished
 
-                if self.SIMULATION == False:
+                if SIMULATION == False:
                     if loop_cnt % 10 == 0:
                         print("Finished %s Loop: %s seconds elapsed"%(loop_cnt, round(end_tm-start_tm, 2)))
                         print("current balance num: %s(%s)" % (balance_num, balance_list))
                         for key_idx, key in enumerate(playable_market_list):
-                            if key_idx < 40 and playable_market_list[key] > 100000000.0:
-                                print("playable_market_list(%s): %s, %s" % (key_idx, key, round(playable_market_list[key]/100000000.0,2)))
+                            if key_idx < max_playable_market and playable_market_list[key] > 100000000.0:
+                                print("playable_market_list(%s): %s, %s" % (key_idx, key, round(playable_market_list[key]/100000000.0, 2)))
 
                 loop_cnt += 1
 

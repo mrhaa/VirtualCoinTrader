@@ -11,22 +11,24 @@ if __name__ == '__main__':
     PRINT_DATA_LOG = False
     PROCEDURE_ERR_LOG = True  # 메인 프로시저 동작 시 오류
     API_ERR_LOG = False  # 비스업 API 호출 시 오류
-    SIMULATION = False # 시뮬레이션 여부
 
     batch = BatchManager.BatchManager(PRINT_BALANCE_STATUS_LOG=PRINT_BALANCE_STATUS_LOG, PRINT_TRADABLE_MARKET_LOG=PRINT_TRADABLE_MARKET_LOG, PRINT_DATA_LOG=PRINT_DATA_LOG
-                                      , PROCEDURE_ERR_LOG=PROCEDURE_ERR_LOG, API_ERR_LOG=API_ERR_LOG, SIMULATION=SIMULATION)
+                                      , PROCEDURE_ERR_LOG=PROCEDURE_ERR_LOG, API_ERR_LOG=API_ERR_LOG)
 
     if 0:
         TEST_LOGIC = False
         batch.test(TEST_LOGIC)
 
     if 1:
+        SIMULATION = False  # 시뮬레이션 여부
+
         # 프로시저 작업 활성화 단계 설정(전 단계가 True인 경우 다음 단계에가 활성화될 수 있음)
         READ_BALANCE = True  # 1. 비트업에서 계좌 정보를 읽음
         READ_MARKET = True  # 2. 비트업에서 거래 가능한 종목 리스트업
         READ_DATA = True  # 3. 비트업에서 시계열 데이터 읽음
         ANALYZE_DATA = True  # 4. 시그널 생성
         TRADE_COIN = True  # 5. 시그널에 맞춰 매매
+
 
         # 옵션한 기능 활성화 설정
         EMPTY_ALL_POSITION = False  # 모든 포지션 매도 후 프로그램 종료
@@ -39,9 +41,9 @@ if __name__ == '__main__':
         PARAMETERS['DM'] = {'count': 100}
         PARAMETERS['SM'] = {'short_term': 5, 'long_term': 7, 'sell_short_term': 5, 'sell_long_term': 10}
         PARAMETERS['TM'] = {'buy_amount_multiple': 10, 'target_profit': 0.039, 'additional_position_threshold': -0.145}
-        PARAMETERS['ETC'] = {'current_period': 3, 'market_shock_threshold': 0.1}
+        PARAMETERS['ETC'] = {'max_playable_market': 40, 'current_period': 3, 'market_shock_threshold': 0.1}
 
-        batch.loop_procedures(READ_BALANCE=READ_BALANCE, READ_MARKET=READ_MARKET, READ_DATA=READ_DATA, ANALYZE_DATA=ANALYZE_DATA, TRADE_COIN=TRADE_COIN
+        batch.loop_procedures(SIMULATION=SIMULATION, READ_BALANCE=READ_BALANCE, READ_MARKET=READ_MARKET, READ_DATA=READ_DATA, ANALYZE_DATA=ANALYZE_DATA, TRADE_COIN=TRADE_COIN
                               , EMPTY_ALL_POSITION=EMPTY_ALL_POSITION, CALL_TERM_APPLY=CALL_TERM_APPLY, SELL_SIGNAL=SELL_SIGNAL, RE_BID_TYPE=RE_BID_TYPE
                               , PARAMETERS=PARAMETERS
                               )#, TEST_MARKET='KRW-GRS')
