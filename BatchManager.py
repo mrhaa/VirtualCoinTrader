@@ -356,15 +356,18 @@ class BatchManager():
 
         ############################################################################
         market_shock = False
-        playable_market_list = {}
+        playable_markets_amount = {}
+        playable_markets_rate = {}
         max_playable_market = PARAMETERS['ETC']['max_playable_market'] # 40
         current_period = PARAMETERS['ETC']['current_period'] # 3
         (markets, markets_num, markets_list) = mm.get_markets_info()
         for market in markets.index:
             (series, series_num) = dm_short.get_series_info(market=market)
-            playable_market_list[market] = ((series['volume'][-current_period:] * series['close'][-current_period:]).sum()) * (series['close'][-1] / series['close'][-current_period] - 1.0)
+            playable_markets_amount[market] = (series['volume'][-current_period:] * series['close'][-current_period:]).sum()
+            playable_markets_rate[market] = series['close'][-1] / series['close'][-current_period] - 1.0
 
         market_shock_threshold = PARAMETERS['ETC']['market_shock_threshold'] # 0.1
+        minimum_price = PARAMETERS['ETC']['minimum_price'] # 300
 
         ############################################################################
 
@@ -391,7 +394,7 @@ class BatchManager():
 
                     if READ_MARKET:
 
-                        (markets, markets_num, markets_list) = mm.get_markets_info()
+                        (markets, markets_num, markets_list) = mm.get_markets_info(no=n)
 
                         # 거래가 가능한 종목들을 순차적으로 돌아가며 처리
                         for idx_mrk, market in enumerate(markets.index):
@@ -419,17 +422,19 @@ class BatchManager():
                                     (series, series_num) = dm_short.get_series_info(market=market, no=n, curr=new_idx)
                                     if loop_cnt % 10 == 0:
                                         # 최근 특정 기간 거래금액 * 수익률이 높은 상위 가상화폐만 거래
-                                        playable_market_list[market] = ((series['volume'][-current_period:] * series['close'][-current_period:]).sum()) * (series['close'][-1] / series['close'][-current_period] - 1.0)
-                                        playable_market_list = sorted(playable_market_list.items(), key=lambda item: item[1], reverse=True)
-                                        playable_market_list = {k: v for k, v in playable_market_list}
+                                        playable_markets_amount[market] = (series['volume'][-current_period:] * series['close'][-current_period:]).sum()
+                                        playable_markets_rate[market] = series['close'][-1] / series['close'][-current_period] - 1.0
+
+                                        playable_markets_amount = sorted(playable_markets_amount.items(), key=lambda item: item[1], reverse=True)
+                                        playable_markets_amount = {k: v for k, v in playable_markets_amount}
 
                                         # 마켓 쇼크가 발생한 경우 일단 포지션 정리
-                                        market_shock_ratio = sum([1 if value > 0.0 else 0 for value in playable_market_list.values()]) / len(playable_market_list)
+                                        market_shock_ratio = sum([1 if playable_markets_amount[key]*playable_markets_rate[key] > 0.0 else 0 for key in playable_markets_amount.keys()]) / len(playable_markets_amount)
                                         if market_shock_ratio < market_shock_threshold:
                                             market_shock = True
 
                                         if idx_mrk == 0:
-                                            print('Maket Shock Ratio: %s / %s'%(round(market_shock_ratio, 2), market_shock_threshold))
+                                            print('Market Shock Ratio: %s / %s'%(round(market_shock_ratio, 2), market_shock_threshold))
 
                                     # 최신 데이터에 시장가 적용
                                     if 0:
@@ -501,7 +506,7 @@ class BatchManager():
                                                 if EMPTY_ALL_POSITION:
                                                     msg = 'EMPTY_ALL_POSITION(%s)'%(market)
                                                 elif market_shock == True:
-                                                 msg = 'MARKET_SHOCK HAPPENED(%s, %s/%s)'%(market, market_shock_ratio, market_shock_threshold)
+                                                    msg = 'MARKET_SHOCK HAPPENED(%s, %s/%s)'%(market, round(market_shock_ratio, 2), market_shock_threshold)
 
                                             if market_shock == True:
                                                 market_shock = False
@@ -510,8 +515,10 @@ class BatchManager():
                                             # 현금이 최소 단위의 금액 이상 있는 경우 BUY 할 수 있음
                                             if float(balance[position_idx_nm][currency+'-'+currency]) > buy_amount_unit:
 
-                                                # 거래량이 많은 약 상위 30%이고 최근 상승 구간에 있는 코인만 매수 시도
-                                                if market in list(playable_market_list.keys())[:max_playable_market] and playable_market_list[market] > 100000000.0:
+                                                # 거래량이 많은 약 상위 30%이고 최근 상승 구간에 있는 코인 분 최근 상승 추세인 경우 매수 시도
+                                                if market in list(playable_markets_amount.keys())[:max_playable_market]\
+                                                        and playable_markets_rate[market] > 0.0:
+                                                        #and playable_markets_amount[market] > 100000000.0:
 
                                                     # 최대 보유 가능 종류 수량을 넘는 경우
                                                     if balance_num > max_balance_num:
@@ -607,10 +614,9 @@ class BatchManager():
                                                             msg = "SELL: dead_cross of %s(%s pro)"%(market, round(expected_profit*100, 2))
                                                             trade_cd = -1
 
-                                            if 0:
-                                                # 특정 가격 보다 작은 종목은 보유하지 않음
-                                                if series['close'][-1] < 300.0:
-                                                    signal = False
+                                            # 특정 가격 보다 작은 종목은 보유하지 않음
+                                            if series['close'][-1] < minimum_price:
+                                                signal = False
 
                                         if TRADE_COIN:
                                             if signal == 'BUY' or signal == 'SELL':
@@ -675,9 +681,6 @@ class BatchManager():
                     if loop_cnt % 10 == 0:
                         print("Finished %s Loop: %s seconds elapsed"%(loop_cnt, round(end_tm-start_tm, 2)))
                         print("current balance num: %s(%s)" % (balance_num, balance_list))
-                        for key_idx, key in enumerate(playable_market_list):
-                            if key_idx < max_playable_market and playable_market_list[key] > 100000000.0:
-                                print("playable_market_list(%s): %s, %s" % (key_idx, key, round(playable_market_list[key]/100000000.0, 2)))
 
                 loop_cnt += 1
 

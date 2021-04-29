@@ -34,17 +34,18 @@ class MarketManager():
 
         self.db = db
 
-    def get_markets_info(self):
+    def get_markets_info(self, no=0):
 
         # 시뮬레이션인 경우 DB에 있는 데이터를 사용
         if self.SIMULATION == False:
             self.markets = self.api.look_up_all_coins()
         else:
-            self.markets = self.db.look_up_all_coins()
+            self.markets = self.db.look_up_all_coins(no=no)
 
         if self.markets is not False:
             #self.btc_markets = self.markets.loc[[True if 'BTC-' in market else False for market in self.markets[self.market_idx_nm]]]
             #self.usdt_markets = self.markets.loc[[True if 'USDT-' in market else False for market in self.markets[self.market_idx_nm]]]
+            #self.krw_markets = self.markets.loc[[True if 'KRW-' in market else False for market in self.markets[self.market_idx_nm]]]
             self.markets = self.markets.loc[[True if self.currency+'-' in market else False for market in self.markets[self.market_idx_nm]]]
             self.markets.rename(columns={'korean_name': 'kr_nm', 'english_name': 'us_nm'}, inplace=True)
             self.markets.set_index(self.market_idx_nm, inplace=True)
