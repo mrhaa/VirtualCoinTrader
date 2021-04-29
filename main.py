@@ -34,12 +34,12 @@ if __name__ == '__main__':
         EMPTY_ALL_POSITION = False  # 모든 포지션 매도 후 프로그램 종료
         CALL_TERM_APPLY = False  # API 오류 빈도에 따라 루프 주기를 자동 조절
         SELL_SIGNAL = False
-        RE_BID_TYPE = 'PRICE' # 'PRICE', 'TIME'
+        RE_BID_TYPE = 'PRICE' # 'PRICE' or 'TIME'
 
         PARAMETERS = {'BM': {}, 'DM': {}, 'SM': {}, 'TM': {}, 'ETC': {}}
         PARAMETERS['BM'] = {'max_balance_num': 200}
         PARAMETERS['DM'] = {'count': 100}
-        PARAMETERS['SM'] = {'short_term': 5, 'long_term': 7, 'sell_short_term': 5, 'sell_long_term': 10}
+        PARAMETERS['SM'] = {'algorithm': 'z_value', 'short_term': 5, 'long_term': 7, 'sell_short_term': 5, 'sell_long_term': 10}
         PARAMETERS['TM'] = {'buy_amount_multiple': 10, 'target_profit': 0.039, 'additional_position_threshold': -0.145}
         PARAMETERS['ETC'] = {'max_playable_market': 40, 'minimum_price': 500.0, 'current_period': 5, 'market_shock_threshold': 0.1}
 

@@ -319,6 +319,7 @@ class BatchManager():
         dm_short.set_parameters_for_series(interval_unit=interval_unit_short, interval_val=interval_val_short, count=count, series_idx_nm=series_idx_nm, last_idx_nm1=last_idx_nm1, last_idx_nm2=last_idx_nm2)
 
         ############################################################################
+        algorithm = PARAMETERS['SM']['algorithm']
         short_term = PARAMETERS['SM']['short_term'] # 5
         long_term = PARAMETERS['SM']['long_term'] # 7
         short_term_momentum_threshold = 0.98 # 값이 작을 수록 빠르게 진입 & 빠르게 탈출
@@ -531,12 +532,12 @@ class BatchManager():
                                                         # signal이 발생하거나 매매 처리 예외 리스트에 없는 경우
                                                         if market not in except_market_list:
 
-                                                            if 0:
+                                                            if algorithm == 'golden_cross':
                                                                 # 골든 크로스 BUY 시그널 계산
                                                                 signal = sm.get_golden_cross_buy_signal(series=series, series_num=series_num, short_term=short_term, long_term=long_term
                                                                                                         , short_term_momentum_threshold=short_term_momentum_threshold, long_term_momentum_threshold=long_term_momentum_threshold
                                                                                                         , volume_momentum_threshold=volume_momentum_threshold, direction=1)
-                                                            else:
+                                                            elif algorithm == 'z_value':
                                                                 signal = sm.get_momentum_z_buy_signal(series=series, series_num=series_num
                                                                                                       , short_term=short_term, long_term=long_term
                                                                                                       , base=0.1)
@@ -584,11 +585,11 @@ class BatchManager():
                                                     if expected_profit > target_profit:
 
                                                         # 골든 크로스 BUY 시그널 계산
-                                                        if 0:
+                                                        if algorithm == 'golden_cross':
                                                             signal = sm.get_golden_cross_buy_signal(series=series, series_num=series_num, short_term=sell_short_term, long_term=sell_long_term
                                                                                                     , short_term_momentum_threshold=short_term_momentum_threshold, long_term_momentum_threshold=long_term_momentum_threshold
                                                                                                     , volume_momentum_threshold=volume_momentum_threshold, direction=-1)
-                                                        else:
+                                                        elif algorithm == 'z_value':
                                                             signal = sm.get_momentum_z_buy_signal(series=series, series_num=series_num
                                                                                                   , short_term=sell_short_term, long_term=sell_long_term
                                                                                                   , base=0.1)
@@ -603,9 +604,9 @@ class BatchManager():
                                                             signal = False
 
                                                     if SELL_SIGNAL:
-                                                        if 0:
+                                                        if algorithm == 'golden_cross':
                                                             signal = sm.get_dead_cross_sell_signal(series=series, series_num=series_num, short_term=sell_short_term, long_term=sell_long_term)
-                                                        else:
+                                                        elif algorithm == 'z_value':
                                                             signal = sm.get_momentum_z_sell_signal(series=series, series_num=series_num
                                                                                                   , short_term=sell_short_term, long_term=sell_long_term
                                                                                                   , base=0.0)
