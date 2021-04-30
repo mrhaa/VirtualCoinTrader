@@ -359,6 +359,7 @@ class BatchManager():
         market_shock = False
         playable_markets_amount = {}
         playable_markets_rate = {}
+        playable_markets_slope = {}
         max_playable_market = PARAMETERS['ETC']['max_playable_market'] # 40
         current_period = PARAMETERS['ETC']['current_period'] # 3
         (markets, markets_num, markets_list) = mm.get_markets_info()
@@ -366,6 +367,7 @@ class BatchManager():
             (series, series_num) = dm_short.get_series_info(market=market)
             playable_markets_amount[market] = (series['volume'][-current_period:] * series['close'][-current_period:]).sum()
             playable_markets_rate[market] = series['close'][-1] / series['close'][-current_period] - 1.0
+            playable_markets_slope[market] = np.polyfit([x for x in range(current_period)], list(series['close'][-current_period:].values), 1)[0]
 
         market_shock_threshold = PARAMETERS['ETC']['market_shock_threshold'] # 0.1
         minimum_price = PARAMETERS['ETC']['minimum_price'] # 300
@@ -425,12 +427,14 @@ class BatchManager():
                                         # 최근 특정 기간 거래금액 * 수익률이 높은 상위 가상화폐만 거래
                                         playable_markets_amount[market] = (series['volume'][-current_period:] * series['close'][-current_period:]).sum()
                                         playable_markets_rate[market] = series['close'][-1] / series['close'][-current_period] - 1.0
+                                        playable_markets_slope[market] = np.polyfit([x for x in range(current_period)], list(series['close'][-current_period:].values), 1)[0]
 
-                                        playable_markets_amount = sorted(playable_markets_amount.items(), key=lambda item: item[1], reverse=True)
-                                        playable_markets_amount = {k: v for k, v in playable_markets_amount}
+                                        playable_markets_amount_sorted = sorted(playable_markets_amount.items(), key=lambda item: item[1], reverse=True)
+                                        playable_markets_amount_sorted = {k: v for k, v in playable_markets_amount_sorted}
 
                                         # 마켓 쇼크가 발생한 경우 일단 포지션 정리
-                                        market_shock_ratio = sum([1 if playable_markets_amount[key]*playable_markets_rate[key] > 0.0 else 0 for key in playable_markets_amount.keys()]) / len(playable_markets_amount)
+                                        #market_shock_ratio = sum([1 if playable_markets_rate[key] > 0.0 else 0 for key in playable_markets_amount_sorted.keys()]) / len(playable_markets_amount_sorted)
+                                        market_shock_ratio = sum([1 if playable_markets_slope[key] > 0.0 else 0 for key in playable_markets_amount_sorted.keys()]) / len(playable_markets_amount_sorted)
                                         if market_shock_ratio < market_shock_threshold:
                                             market_shock = True
 
@@ -445,10 +449,6 @@ class BatchManager():
                                             new_low = pd.DataFrame({'market': market, 'close': last['close'][0]}, columns=series.columns, index=[new_idx])
                                             (series, series_num) = dm_short.append_new_data(market=market, data=new_low)
 
-                                    if 0:
-                                        Y = list(series['close'][-5:].values)
-                                        X = [x for x in range(5)]
-                                        print(np.polyfit(X, Y, 1)[0])
 
                                     # 최근 매도한 코인 재매수할 지 판단, 급등 이후 재매수를 통해 물리는 경우 방지
                                     if market in recently_sold_list.keys():
@@ -517,9 +517,7 @@ class BatchManager():
                                             if float(balance[position_idx_nm][currency+'-'+currency]) > buy_amount_unit:
 
                                                 # 거래량이 많은 약 상위 30%이고 최근 상승 구간에 있는 코인 분 최근 상승 추세인 경우 매수 시도
-                                                if market in list(playable_markets_amount.keys())[:max_playable_market]\
-                                                        and playable_markets_rate[market] > 0.0:
-                                                        #and playable_markets_amount[market] > 100000000.0:
+                                                if market in list(playable_markets_amount_sorted.keys())[:max_playable_market] and playable_markets_slope[market] > 0.0:
 
                                                     # 최대 보유 가능 종류 수량을 넘는 경우
                                                     if balance_num > max_balance_num:
@@ -656,7 +654,7 @@ class BatchManager():
                                                     if row[0] == currency+'-'+currency:
                                                         cash_amount += row[1]['balance']
                                                     else:
-                                                        asset_amount += row[1]['balance']*db.get_ticker(row[0], loop_cnt)['close'][0]
+                                                        asset_amount += row[1]['balance']*db.get_ticker(market=row[0], no=n, seq=loop_cnt)['close'][0]
                                                 print("-----------------------Total Amount: %s (Cash: %s, Asset: %s) -------------------------"%(format(round(cash_amount+asset_amount), ','), format(round(cash_amount), ','), format(round(asset_amount), ',')))
 
                                                 if loop_cnt == loop_num:
@@ -681,7 +679,7 @@ class BatchManager():
                 if SIMULATION == False:
                     if loop_cnt % 10 == 0:
                         print("Finished %s Loop: %s seconds elapsed"%(loop_cnt, round(end_tm-start_tm, 2)))
-                        print("current balance num: %s(%s)" % (balance_num, balance_list))
+                        print("current balance num: %s" % (balance_num))
 
                 loop_cnt += 1
 
