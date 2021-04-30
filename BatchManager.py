@@ -421,27 +421,32 @@ class BatchManager():
                                         print("No last data.")
                                         continue
 
+                                    # 과거 시계열 데이터 취득
+                                    # 시뮬레이션의 경우 spot 특정 기간의 데이터를 가지고 오기 위해 spot 데이터의 시간을 파라미터로 전달
                                     new_idx = last['trade_date_kst'][0][:4]+'-'+last['trade_date_kst'][0][4:6]+'-'+last['trade_date_kst'][0][-2:]+'T'+last['trade_time_kst'][0][:2]+':'+last['trade_time_kst'][0][2:4]+':'+last['trade_time_kst'][0][-2:]
                                     (series, series_num) = dm_short.get_series_info(market=market, no=n, curr=new_idx)
-                                    if loop_cnt % 10 == 0:
-                                        # 최근 특정 기간 거래금액 * 수익률이 높은 상위 가상화폐만 거래
-                                        playable_markets_amount[market] = (series['volume'][-current_period:] * series['close'][-current_period:]).sum()
-                                        playable_markets_rate[market] = series['close'][-1] / series['close'][-current_period] - 1.0
-                                        playable_markets_slope[market] = np.polyfit([x for x in range(current_period)], list(series['close'][-current_period:].values), 1)[0]
+                                    if series is False:
+                                        print("No series data.")
+                                        continue
 
-                                        playable_markets_amount_sorted = sorted(playable_markets_amount.items(), key=lambda item: item[1], reverse=True)
-                                        playable_markets_amount_sorted = {k: v for k, v in playable_markets_amount_sorted}
 
-                                        # 마켓 쇼크가 발생한 경우 일단 포지션 정리
-                                        #market_shock_ratio = sum([1 if playable_markets_rate[key] > 0.0 else 0 for key in playable_markets_amount_sorted.keys()]) / len(playable_markets_amount_sorted)
-                                        market_shock_ratio = sum([1 if playable_markets_slope[key] > 0.0 else 0 for key in playable_markets_amount_sorted.keys()]) / len(playable_markets_amount_sorted)
-                                        if market_shock_ratio < market_shock_threshold:
-                                            market_shock = True
+                                    # 최근 특정 기간 거래금액, 수익률, 방향성 계산
+                                    playable_markets_amount[market] = (series['volume'][-current_period:] * series['close'][-current_period:]).sum()
+                                    playable_markets_rate[market] = series['close'][-1] / series['close'][-current_period] - 1.0
+                                    playable_markets_slope[market] = np.polyfit([x for x in range(current_period)], list(series['close'][-current_period:].values), 1)[0]
 
-                                        if idx_mrk == 0:
-                                            print('Market Shock Ratio: %s / %s'%(round(market_shock_ratio, 2), market_shock_threshold))
+                                    playable_markets_amount_sorted = sorted(playable_markets_amount.items(), key=lambda item: item[1], reverse=True)
+                                    playable_markets_amount_sorted = {k: v for k, v in playable_markets_amount_sorted}
 
-                                    # 최신 데이터에 시장가 적용
+
+                                    # 마켓 쇼크가 발생한 경우 일단 포지션 정리
+                                    #market_shock_ratio = sum([1 if playable_markets_rate[key] > 0.0 else 0 for key in playable_markets_amount_sorted.keys()]) / len(playable_markets_amount_sorted)
+                                    market_shock_ratio = sum([1 if playable_markets_slope[key] > 0.0 else 0 for key in playable_markets_amount_sorted.keys()]) / len(playable_markets_amount_sorted)
+                                    if market_shock_ratio < market_shock_threshold:
+                                        market_shock = True
+
+
+                                    # 최신 데이터를 시계열 데이터에 반영
                                     if 0:
                                         series['close'][-1] = last['close'][0]
                                     else:
