@@ -3,6 +3,7 @@
 import time
 import datetime
 from timeit import default_timer as timer
+from datetime import timedelta
 import operator
 import numpy as np
 import pandas as pd
@@ -365,10 +366,10 @@ class BatchManager():
         current_period = PARAMETERS['ETC']['current_period'] # 3
         (markets, markets_num, markets_list) = mm.get_markets_info()
         for market in markets.index:
-            (series, series_num) = dm_short.get_series_info(market=market)
-            playable_markets_amount[market] = (series['volume'][-current_period:] * series['close'][-current_period:]).sum()
-            playable_markets_rate[market] = series['close'][-1] / series['close'][-current_period] - 1.0
-            playable_markets_slope[market] = np.polyfit([x for x in range(current_period)], list(series['close'][-current_period:].values), 1)[0]
+            (short_series, short_series_num) = dm_short.get_series_info(market=market)
+            playable_markets_amount[market] = (short_series['volume'][-current_period:] * short_series['close'][-current_period:]).sum()
+            playable_markets_rate[market] = short_series['close'][-1] / short_series['close'][-current_period] - 1.0
+            playable_markets_slope[market] = np.polyfit([x for x in range(current_period)], list(short_series['close'][-current_period:].values), 1)[0]
 
         market_shock_threshold = PARAMETERS['ETC']['market_shock_threshold'] # 0.1
         market_shock_base_rate = PARAMETERS['ETC']['market_shock_base_rate']  # -0.02
@@ -418,24 +419,26 @@ class BatchManager():
                                 if READ_DATA:
 
                                     # 시장가 취득
-                                    last = dm_short.get_last_info(market=market, no=n, seq=loop_cnt)
-                                    if last is False:
+                                    long_last = dm_long.get_last_info(market=market, no=n, seq=loop_cnt)
+                                    if long_last is False:
                                         print("No last data.")
                                         continue
 
                                     # 과거 시계열 데이터 취득
                                     # 시뮬레이션의 경우 spot 특정 기간의 데이터를 가지고 오기 위해 spot 데이터의 시간을 파라미터로 전달
-                                    new_idx = last['trade_date_kst'][0][:4]+'-'+last['trade_date_kst'][0][4:6]+'-'+last['trade_date_kst'][0][-2:]+'T'+last['trade_time_kst'][0][:2]+':'+last['trade_time_kst'][0][2:4]+':'+last['trade_time_kst'][0][-2:]
-                                    (series, series_num) = dm_short.get_series_info(market=market, no=n, curr=new_idx)
-                                    if series is False:
+                                    new_idx = long_last['trade_date_kst'][0][:4]+'-'+long_last['trade_date_kst'][0][4:6]+'-'+long_last['trade_date_kst'][0][-2:]\
+                                              +'T'+long_last['trade_time_kst'][0][:2]+':'+long_last['trade_time_kst'][0][2:4]+':'+long_last['trade_time_kst'][0][-2:]
+                                    (long_series, long_series_num) = dm_long.get_series_info(market=market, no=n, curr=new_idx)
+                                    if long_series is False:
                                         print("No series data.")
                                         continue
 
 
                                     # 최근 특정 기간 거래금액, 수익률, 방향성 계산
-                                    playable_markets_amount[market] = (series['volume'][-current_period:] * series['close'][-current_period:]).sum()
-                                    playable_markets_rate[market] = series['close'][-1] / series['close'][-current_period] - 1.0
-                                    playable_markets_slope[market] = np.polyfit([x for x in range(current_period)], list(series['close'][-current_period:].values), 1)[0]
+                                    (short_series, short_series_num) = dm_short.get_series_info(market=market)
+                                    playable_markets_amount[market] = (short_series['volume'][-current_period:] * short_series['close'][-current_period:]).sum()
+                                    playable_markets_rate[market] = short_series['close'][-1] / short_series['close'][-current_period] - 1.0
+                                    playable_markets_slope[market] = np.polyfit([x for x in range(current_period)], list(short_series['close'][-current_period:].values), 1)[0]
 
                                     playable_markets_amount_sorted = sorted(playable_markets_amount.items(), key=lambda item: item[1], reverse=True)
                                     playable_markets_amount_sorted = {k: v for k, v in playable_markets_amount_sorted}
@@ -450,11 +453,11 @@ class BatchManager():
 
                                     # 최신 데이터를 시계열 데이터에 반영
                                     if 0:
-                                        series['close'][-1] = last['close'][0]
+                                        long_series['close'][-1] = long_series['close'][0]
                                     else:
-                                        if datetime.datetime.strptime(new_idx, "%Y-%m-%dT%H:%M:%S") > datetime.datetime.strptime(series.index[-1], "%Y-%m-%dT%H:%M:%S"):
-                                            new_low = pd.DataFrame({'market': market, 'close': last['close'][0]}, columns=series.columns, index=[new_idx])
-                                            (series, series_num) = dm_short.append_new_data(market=market, data=new_low)
+                                        if datetime.datetime.strptime(new_idx, "%Y-%m-%dT%H:%M:%S") > datetime.datetime.strptime(long_series.index[-1], "%Y-%m-%dT%H:%M:%S"):
+                                            new_low = pd.DataFrame({'market': market, 'close': long_last['close'][0]}, columns=long_series.columns, index=[new_idx])
+                                            (long_series, long_series_num) = dm_long.append_new_data(market=market, data=new_low)
 
 
                                     # 최근 매도한 코인 재매수할 지 판단, 급등 이후 재매수를 통해 물리는 경우 방지
@@ -465,9 +468,9 @@ class BatchManager():
                                             price_lag = 5
                                             surge_rate_limit = 0.10
 
-                                            surge_rate = series['close'][-1] / min(series['close'][-price_lag:]) - 1.0
+                                            surge_rate = long_series['close'][-1] / min(long_series['close'][-price_lag:]) - 1.0
                                             if surge_rate < surge_rate_limit:
-                                                print("%s은 최근 매도 리스트에서 제외(PRICE, %s pro)."%(market, round(surge_rate*100, 2)))
+                                                print("%s은 최근 매도 리스트에서 제외(PRICE, %s pro)." % (market, round(surge_rate*100, 2)))
                                                 recently_sold_list.pop(market)
 
                                         # 최근 매도한 마켓 리스트 중 일정 시간이 지나면 재매수할 수 있음
@@ -477,10 +480,11 @@ class BatchManager():
 
                                         if market in recently_sold_list.keys():
                                             if timer()-recently_sold_list[market]['TIME'] > time_lag:
-                                                print(market + "은 최근 매도 리스트에서 제외(TIME, %s)."%(time_lag))
+                                                print(market + "은 최근 매도 리스트에서 제외(TIME, %s)." % (time_lag))
                                                 recently_sold_list.pop(market)
 
-                                    if series is False:
+
+                                    if long_series is False:
                                         if CALL_TERM_APPLY:
                                             # 너무 자주 call error 발생 시 주기 확대
                                             call_err_score = call_err_score - 1.0
@@ -488,7 +492,7 @@ class BatchManager():
                                                 # 최대 0.1초까지 증가 시킬 수 있음
                                                 call_term = min(call_term * 1.1, 0.1)
                                                 call_err_score = 0
-                                                print("API call term extended to %s"%(round(call_term, 4)))
+                                                print("API call term extended to %s" % (round(call_term, 4)))
                                         print("No data series.")
                                         continue
 
@@ -499,7 +503,7 @@ class BatchManager():
                                             if call_err_score > call_err_pos_score_threshold:
                                                 call_term = call_term * 0.9
                                                 call_err_score = 0
-                                                print("API call term reduced to %s"%(round(call_term, 4)))
+                                                print("API call term reduced to %s" % (round(call_term, 4)))
 
                                     if ANALYZE_DATA:
                                         # BUY, SELL
@@ -512,9 +516,11 @@ class BatchManager():
                                                 signal = 'SELL'
 
                                                 if EMPTY_ALL_POSITION:
-                                                    msg = 'EMPTY_ALL_POSITION(%s)'%(market)
+                                                    msg = 'EMPTY_ALL_POSITION(%s)' \
+                                                          % (market)
                                                 elif market_shock == True:
-                                                    msg = 'MARKET_SHOCK HAPPENED(%s, %s/%s)'%(market, round(market_shock_ratio, 2), market_shock_threshold)
+                                                    msg = 'MARKET_SHOCK HAPPENED(%s, %s/%s)' \
+                                                          % (market, round(market_shock_ratio, 2), market_shock_threshold)
 
                                             if market_shock == True:
                                                 market_shock = False
@@ -530,7 +536,7 @@ class BatchManager():
                                                     if balance_num > max_balance_num:
 
                                                         if loop_cnt % 10 == 0:
-                                                            print("현재 %s/%s 포지션 보유중으로 %s 추가 매수 불가"%(balance_num, max_balance_num, market))
+                                                            print("현재 %s/%s 포지션 보유중으로 %s 추가 매수 불가" % (balance_num, max_balance_num, market))
                                                         pass
 
                                                     else:
@@ -539,11 +545,11 @@ class BatchManager():
 
                                                             if algorithm == 'golden_cross':
                                                                 # 골든 크로스 BUY 시그널 계산
-                                                                signal = sm.get_golden_cross_buy_signal(series=series, series_num=series_num, short_term=short_term, long_term=long_term
+                                                                signal = sm.get_golden_cross_buy_signal(series=long_series, series_num=long_series_num, short_term=short_term, long_term=long_term
                                                                                                         , short_term_momentum_threshold=short_term_momentum_threshold, long_term_momentum_threshold=long_term_momentum_threshold
                                                                                                         , volume_momentum_threshold=volume_momentum_threshold, direction=1)
                                                             elif algorithm == 'z_value':
-                                                                signal = sm.get_momentum_z_buy_signal(series=series, series_num=series_num
+                                                                signal = sm.get_momentum_z_buy_signal(series=long_series, series_num=long_series_num
                                                                                                       , short_term=short_term, long_term=long_term
                                                                                                       , base=base_z_value)
 
@@ -555,23 +561,25 @@ class BatchManager():
                                                                     if market in list(recently_sold_list.keys()):
                                                                         signal = False
                                                                     else:
-                                                                        msg = "BUY: golden_cross of %s pro"%(market)
+                                                                        msg = "BUY: golden_cross of %s pro" \
+                                                                              % (market)
                                                                         trade_cd = 1
 
                                                             else:
                                                                 # 손실률이 기준 이하인 경우 추가 매수
-                                                                expected_loss = series['close'][-1] / float(balance['avg_price'][market]) - 1.0
+                                                                expected_loss = long_series['close'][-1] / float(balance['avg_price'][market]) - 1.0
                                                                 if expected_loss < additional_position_threshold:
-                                                                    #print('추가 매수 시도:', market, signal, round(expected_loss*100,2), round(series['close'][-1],2), round(series['close'][-short_term:].mean(),2), round(series['close'][-long_term:].mean(),2))
                                                                     # 시장 조정 후 골든 크로스로 변경되는 경우 물타기
                                                                     if signal == 'BUY':
-                                                                        msg = "BUY: loss of %s is %s pro. buy addtional position."%(market, round(expected_loss*100, 2))
+                                                                        msg = "BUY: loss of %s is %s pro. buy addtional position." \
+                                                                              % (market, round(expected_loss*100, 2))
                                                                         trade_cd = 2
 
                                                                 # 단위 금액보다 적은 금액이 매수된 경우 추가 매수
                                                                 if round(buy_amount_unit - float(balance['avg_price'][market])*float(balance['balance'][market]), -4) / 10000.0 > 0:
                                                                     if signal == 'BUY':
-                                                                        msg = "BUY: less of %s is %s won. buy addtional position."%(market, round(buy_amount_unit-series['close'][-1] * float(balance['balance'][market]), -4))
+                                                                        msg = "BUY: less of %s is %s won. buy addtional position." \
+                                                                              % (market, round(buy_amount_unit-long_series['close'][-1] * float(balance['balance'][market]), -4))
                                                                         trade_cd = 3
 
                                             # 해당 코인을 보유하고 있는 경우 SELL 할 수 있음
@@ -582,46 +590,47 @@ class BatchManager():
 
                                                     # 물렸던 경우 목표 수익률 보다 낮은 수준에서 차익 실현
                                                     profit_multiple = 1.0
-                                                    if series['close'][-1] * float(balance['balance'][market]) > buy_amount_unit * 2:
+                                                    if long_series['close'][-1] * float(balance['balance'][market]) > buy_amount_unit * 2:
                                                         profit_multiple = 1.5
 
                                                     # 목표한 수익률 달성 시 매도
-                                                    expected_profit = (series['close'][-1] / float(balance['avg_price'][market]) - 1.0) * profit_multiple
+                                                    expected_profit = (long_series['close'][-1] / float(balance['avg_price'][market]) - 1.0) * profit_multiple
                                                     if expected_profit > target_profit:
 
                                                         # 골든 크로스 BUY 시그널 계산
                                                         if algorithm == 'golden_cross':
-                                                            signal = sm.get_golden_cross_buy_signal(series=series, series_num=series_num, short_term=sell_short_term, long_term=sell_long_term
+                                                            signal = sm.get_golden_cross_buy_signal(series=long_series, series_num=long_series_num, short_term=sell_short_term, long_term=sell_long_term
                                                                                                     , short_term_momentum_threshold=short_term_momentum_threshold, long_term_momentum_threshold=long_term_momentum_threshold
                                                                                                     , volume_momentum_threshold=volume_momentum_threshold, direction=-1)
                                                         elif algorithm == 'z_value':
-                                                            signal = sm.get_momentum_z_buy_signal(series=series, series_num=series_num
+                                                            signal = sm.get_momentum_z_buy_signal(series=long_series, series_num=long_series_num
                                                                                                   , short_term=sell_short_term, long_term=sell_long_term
                                                                                                   , base=base_z_value)
-                                                        #print('수익 실현 시도:', market, signal, round(expected_profit/profit_multiple*100,2), round(series['close'][-1],2), round(series['close'][-sell_short_term:].mean(),2), round(series['close'][-sell_long_term:].mean(),2))
 
                                                         # 골든 크로스 해지, 정배열이 없어지면 모멘텀이 사라졌다고 판단
                                                         if signal != 'BUY':
                                                             signal = 'SELL'
-                                                            msg = "SELL: target profit(%s/%s pro, %s won) of %s is reached."%(round(expected_profit/profit_multiple*100, 2), round(target_profit*100,2), round(float(balance['balance'][market]) * series['close'][-1]), market)
+                                                            msg = "SELL: target profit(%s/%s pro, %s won) of %s is reached." \
+                                                                  % (round(expected_profit/profit_multiple*100, 2), round(target_profit*100,2), round(float(balance['balance'][market]) * long_series['close'][-1]), market)
                                                             trade_cd = -2
                                                         else:
                                                             signal = False
 
                                                     if SELL_SIGNAL:
                                                         if algorithm == 'golden_cross':
-                                                            signal = sm.get_dead_cross_sell_signal(series=series, series_num=series_num, short_term=sell_short_term, long_term=sell_long_term)
+                                                            signal = sm.get_dead_cross_sell_signal(series=long_series, series_num=long_series_num, short_term=sell_short_term, long_term=sell_long_term)
                                                         elif algorithm == 'z_value':
-                                                            signal = sm.get_momentum_z_sell_signal(series=series, series_num=series_num
+                                                            signal = sm.get_momentum_z_sell_signal(series=long_series, series_num=long_series_num
                                                                                                   , short_term=sell_short_term, long_term=sell_long_term
                                                                                                   , base=0.0)
                                                         if signal == 'SELL':
-                                                            expected_profit = float(balance['avg_price'][market]) / series['close'][-1] - 1.0
-                                                            msg = "SELL: dead_cross of %s(%s pro)"%(market, round(expected_profit*100, 2))
+                                                            expected_profit = float(balance['avg_price'][market]) / long_series['close'][-1] - 1.0
+                                                            msg = "SELL: dead_cross of %s(%s pro)" \
+                                                                  % (market, round(expected_profit*100, 2))
                                                             trade_cd = -1
 
                                             # 특정 가격 보다 작은 종목은 보유하지 않음
-                                            if series['close'][-1] < minimum_price:
+                                            if long_series['close'][-1] < minimum_price:
                                                 signal = False
 
                                         if TRADE_COIN:
@@ -630,12 +639,12 @@ class BatchManager():
                                                 tm.set_balance(balance)
                                                 ret = tm.execute_at_market_price(market=market, signal=signal, trade_cd=trade_cd)
                                                 #print("execute return: %s"%(ret))
-                                                (balance, balance_num, balance_list, max_balance_num) = bm.update_balance_info(info=ret, curr_price=series['close'][-1])
+                                                (balance, balance_num, balance_list, max_balance_num) = bm.update_balance_info(info=ret, curr_price=long_series['close'][-1])
                                                 tm.update_balance(balance=balance)
 
                                                 # 매매 내역을 DB에 저장(디버그를 위함)
                                                 if SIMULATION == False:
-                                                    db.save_signal(market=market, date=series.index[-1][:10], time=series.index[-1][-8:], signal=signal, trade_cd=trade_cd, price=series['close'][-1])
+                                                    db.save_signal(market=market, date=long_series.index[-1][:10], time=long_series.index[-1][-8:], signal=signal, trade_cd=trade_cd, price=long_series['close'][-1])
 
                                                     # 매매 성공
                                                     # print(market, ret.text)
@@ -645,7 +654,7 @@ class BatchManager():
                                                         pass
 
                                                 if signal == 'SELL':
-                                                    recently_sold_list[market] = {'TIME':timer(), 'PRICE':series['close'][-1]}
+                                                    recently_sold_list[market] = {'TIME': timer(), 'PRICE': long_series['close'][-1]}
 
                                             # 강제로 모든 포지션을 비우고 현금만 남으면 시스템 다운 시킴
                                             if EMPTY_ALL_POSITION and balance_num == 1:
@@ -653,7 +662,8 @@ class BatchManager():
                                                 break
 
                                             if SIMULATION == True and idx_mrk == 0 and loop_cnt % 10 == 0:
-                                                print("-----------------------My Balance Status (time: %s, loop_cnt: %s, balance_num: %s)----------------------"%(new_idx, loop_cnt, balance_num))
+                                                print("-----------------------My Balance Status (time: %s, loop_cnt: %s, balance_num: %s)----------------------"
+                                                      % (new_idx, loop_cnt, balance_num))
                                                 cash_amount = 0.0
                                                 asset_amount = 0.0
                                                 for idx, row in enumerate(balance.iterrows()):
@@ -662,7 +672,8 @@ class BatchManager():
                                                         cash_amount += row[1]['balance']
                                                     else:
                                                         asset_amount += row[1]['balance']*db.get_ticker(market=row[0], no=n, seq=loop_cnt)['close'][0]
-                                                print("-----------------------Total Amount: %s (Cash: %s, Asset: %s) -------------------------"%(format(round(cash_amount+asset_amount), ','), format(round(cash_amount), ','), format(round(asset_amount), ',')))
+                                                print("-----------------------Total Amount: %s (Cash: %s, Asset: %s) -------------------------"
+                                                      % (format(round(cash_amount+asset_amount), ','), format(round(cash_amount), ','), format(round(asset_amount), ',')))
 
                                                 if loop_cnt == loop_num:
                                                     #sys.exit()
@@ -685,7 +696,7 @@ class BatchManager():
 
                 if SIMULATION == False:
                     if loop_cnt % 10 == 0:
-                        print("Finished %s Loop: %s seconds elapsed"%(loop_cnt, round(end_tm-start_tm, 2)))
+                        print("Finished %s Loop: %s seconds elapsed" % (loop_cnt, round(end_tm-start_tm, 2)))
                         print("current balance num: %s" % (balance_num))
 
                 loop_cnt += 1
