@@ -1,5 +1,9 @@
 #_*_ coding: utf-8 _*_
 
+import pandas as pd
+
+import Utils
+
 class SignalMaker:    # 클래스
     def __init__(self):
         print("Generate SignalMaker.")
@@ -79,22 +83,36 @@ class SignalMaker:    # 클래스
         rolling_short_mean = rolling_short.mean().fillna(0)
         rolling_short_std = rolling_short.std().fillna(0)
         rolling_short_z = (series-rolling_short_mean)/rolling_short_std
+        rolling_short_z_rolling = rolling_short_z.rolling(window=short_len)
+        rolling_short_z_rolling_mean = rolling_short_z_rolling.mean().fillna(0)
 
         rolling_long = series.rolling(window=long_len)
         rolling_long_mean = rolling_long.mean().fillna(0)
         rolling_long_std = rolling_long.std().fillna(0)
         rolling_long_z = (series-rolling_long_mean)/rolling_long_std
+        rolling_long_z_rolling = rolling_long_z.rolling(window=long_len)
+        rolling_long_z_rolling_mean = rolling_long_z_rolling.mean().fillna(0)
 
-        short_price_momentum = rolling_short_z['close'][-1]
-        long_price_momentum = rolling_long_z['close'][-1]
-        short_price_momentum_prev = rolling_short_z['close'][-2]
-        long_price_momentum_prev = rolling_long_z['close'][-2]
+        if 0:
+            Utils.draw_series(rolling_short_z_rolling_mean)
+
+        if 0:
+            short_price_momentum = rolling_short_z['close'][-1]
+            long_price_momentum = rolling_long_z['close'][-1]
+            short_price_momentum_prev = rolling_short_z['close'][-2]
+            long_price_momentum_prev = rolling_long_z['close'][-2]
+        else:
+            short_price_momentum = rolling_short_z_rolling_mean['close'][-1]
+            long_price_momentum = rolling_long_z_rolling_mean['close'][-1]
+            short_price_momentum_prev = rolling_short_z_rolling_mean['close'][-2]
+            long_price_momentum_prev = rolling_long_z_rolling_mean['close'][-2]
 
         #print('momentum_z_buy_signal: ', series['market'][0], short_price_momentum, long_price_momentum)
         #print('short_z: ', series['market'][0], rolling_short_z['close'][-5:])
         #print('long_z: ', series['market'][0], rolling_long_z['close'][-5:])
         #print('long_z: ', series['market'][0], short_price_momentum, long_price_momentum, (short_price_momentum-long_price_momentum), (short_price_momentum-short_price_momentum_prev))
-        if short_price_momentum > base and short_price_momentum > long_price_momentum and short_price_momentum > short_price_momentum_prev:
+        if short_price_momentum > base and short_price_momentum > long_price_momentum \
+                and short_price_momentum > short_price_momentum_prev and long_price_momentum > long_price_momentum_prev:
             return 'BUY'
         else:
             return False

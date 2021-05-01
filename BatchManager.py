@@ -320,6 +320,7 @@ class BatchManager():
 
         ############################################################################
         algorithm = PARAMETERS['SM']['algorithm']
+        base_z_value = PARAMETERS['SM']['base_z_value']
         short_term = PARAMETERS['SM']['short_term'] # 5
         long_term = PARAMETERS['SM']['long_term'] # 7
         short_term_momentum_threshold = 0.98 # 값이 작을 수록 빠르게 진입 & 빠르게 탈출
@@ -370,6 +371,8 @@ class BatchManager():
             playable_markets_slope[market] = np.polyfit([x for x in range(current_period)], list(series['close'][-current_period:].values), 1)[0]
 
         market_shock_threshold = PARAMETERS['ETC']['market_shock_threshold'] # 0.1
+        market_shock_base_rate = PARAMETERS['ETC']['market_shock_base_rate']  # -0.02
+        market_shock_base_slope = PARAMETERS['ETC']['market_shock_base_slope']  # 0.0
         minimum_price = PARAMETERS['ETC']['minimum_price'] # 300
 
         ############################################################################
@@ -441,7 +444,7 @@ class BatchManager():
 
                                     # 마켓 쇼크가 발생한 경우 일단 포지션 정리
                                     #market_shock_ratio = sum([1 if playable_markets_rate[key] > 0.0 else 0 for key in playable_markets_amount_sorted.keys()]) / len(playable_markets_amount_sorted)
-                                    market_shock_ratio = sum([1 if playable_markets_slope[key] > 0.0 else 0 for key in playable_markets_amount_sorted.keys()]) / len(playable_markets_amount_sorted)
+                                    market_shock_ratio = sum([0 if playable_markets_slope[key] < market_shock_base_slope and playable_markets_rate[key] < market_shock_base_rate else 1 for key in playable_markets_amount_sorted.keys()]) / len(playable_markets_amount_sorted)
                                     if market_shock_ratio < market_shock_threshold:
                                         market_shock = True
 
@@ -543,7 +546,7 @@ class BatchManager():
                                                             elif algorithm == 'z_value':
                                                                 signal = sm.get_momentum_z_buy_signal(series=series, series_num=series_num
                                                                                                       , short_term=short_term, long_term=long_term
-                                                                                                      , base=0.1)
+                                                                                                      , base=base_z_value)
 
                                                             # 해당 코인을 보유하고 있지 않은 경우 매수
                                                             if market not in balance_list:
@@ -595,7 +598,7 @@ class BatchManager():
                                                         elif algorithm == 'z_value':
                                                             signal = sm.get_momentum_z_buy_signal(series=series, series_num=series_num
                                                                                                   , short_term=sell_short_term, long_term=sell_long_term
-                                                                                                  , base=0.1)
+                                                                                                  , base=base_z_value)
                                                         #print('수익 실현 시도:', market, signal, round(expected_profit/profit_multiple*100,2), round(series['close'][-1],2), round(series['close'][-sell_short_term:].mean(),2), round(series['close'][-sell_long_term:].mean(),2))
 
                                                         # 골든 크로스 해지, 정배열이 없어지면 모멘텀이 사라졌다고 판단
