@@ -372,7 +372,6 @@ class BatchManager():
 
         market_shock_threshold = PARAMETERS['ETC']['market_shock_threshold'] # 0.1
         market_shock_base_rate = PARAMETERS['ETC']['market_shock_base_rate']  # -0.02
-        market_shock_base_slope = PARAMETERS['ETC']['market_shock_base_slope']  # 0.0
         minimum_price = PARAMETERS['ETC']['minimum_price'] # 300
 
         ############################################################################
@@ -444,7 +443,7 @@ class BatchManager():
 
                                     # 마켓 쇼크가 발생한 경우 일단 포지션 정리
                                     #market_shock_ratio = sum([1 if playable_markets_rate[key] > 0.0 else 0 for key in playable_markets_amount_sorted.keys()]) / len(playable_markets_amount_sorted)
-                                    market_shock_ratio = sum([0 if playable_markets_slope[key] < market_shock_base_slope and playable_markets_rate[key] < market_shock_base_rate else 1 for key in playable_markets_amount_sorted.keys()]) / len(playable_markets_amount_sorted)
+                                    market_shock_ratio = sum([0 if playable_markets_slope[key] < 0.0 and playable_markets_rate[key] < market_shock_base_rate else 1 for key in playable_markets_amount_sorted.keys()]) / len(playable_markets_amount_sorted)
                                     if market_shock_ratio < market_shock_threshold:
                                         market_shock = True
 
