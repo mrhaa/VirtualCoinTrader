@@ -261,6 +261,18 @@ class DBManager():
 
         return ret
 
+    def save_simulation_result(self, no, seq, algorithm, base_z_value, short_term, long_term, sell_short_term, sell_long_term
+                               , buy_amount_multiple, target_profit, additional_position_threshold
+                               , max_playable_market, market_shock_base_rate, minimum_price, current_period, market_shock_threshold
+                               , max_value, min_value, value):
+
+        sql = "INSERT INTO simulation_result (no, seq, algorithm, base_z_value, short_term, long_term, sell_short_term, sell_long_term, buy_amount_multiple, target_profit, additional_position_threshold, max_playable_market, market_shock_base_rate, minimum_price, current_period, market_shock_threshold, max_value, min_value, value, create_time, update_time) " \
+              "VALUES (%s, %s, '%s', %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, now(), now()) " \
+              "ON DUPLICATE KEY UPDATE max_value = %s, min_value = %s, value = %s, update_time = now()"
+        sql_arg = (no, seq, algorithm, base_z_value, short_term, long_term, sell_short_term, sell_long_term, buy_amount_multiple, target_profit, additional_position_threshold, max_playable_market, market_shock_base_rate, minimum_price, current_period, market_shock_threshold, max_value, min_value, value, max_value, min_value, value)
+
+        self.execute_query(sql, sql_arg)
+
 
 
 
