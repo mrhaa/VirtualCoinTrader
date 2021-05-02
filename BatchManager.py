@@ -5,6 +5,7 @@ import datetime
 from timeit import default_timer as timer
 from datetime import timedelta
 import operator
+import copy
 import numpy as np
 import pandas as pd
 
@@ -661,22 +662,43 @@ class BatchManager():
                                                 #sys.exit()
                                                 break
 
-                                            if SIMULATION == True and idx_mrk == 0 and loop_cnt % 10 == 0:
+                                            if SIMULATION == True and idx_mrk == markets_num-1:
                                                 print("-----------------------My Balance Status (time: %s, loop_cnt: %s, balance_num: %s)----------------------"
                                                       % (new_idx, loop_cnt, balance_num))
                                                 cash_amount = 0.0
                                                 asset_amount = 0.0
+                                                total_amount = 0.0
+                                                if loop_cnt == 0:
+                                                    max_total_amount = 0.0
+                                                    min_total_amount = float('inf')
                                                 for idx, row in enumerate(balance.iterrows()):
                                                     #print(str(idx) + " " + row[0] + ", balacne: " + str(row[1]['balance']) + ", avg_price: " + str(row[1]['avg_price']))
                                                     if row[0] == currency+'-'+currency:
                                                         cash_amount += row[1]['balance']
                                                     else:
                                                         asset_amount += row[1]['balance']*db.get_ticker(market=row[0], no=n, seq=loop_cnt)['close'][0]
+
+                                                total_amount = cash_amount+asset_amount
+                                                if max_total_amount < total_amount:
+                                                    max_total_amount = total_amount
+                                                if min_total_amount > total_amount:
+                                                    min_total_amount = total_amount
+
+                                                if loop_cnt == 0:
+                                                    initial_total_amount = total_amount
+
                                                 print("-----------------------Total Amount: %s (Cash: %s, Asset: %s) -------------------------"
-                                                      % (format(round(cash_amount+asset_amount), ','), format(round(cash_amount), ','), format(round(asset_amount), ',')))
+                                                      % (format(round(total_amount), ','), format(round(cash_amount), ','), format(round(asset_amount), ',')))
 
                                                 if loop_cnt == loop_num:
                                                     #sys.exit()
+                                                    db.save_simulation_result(no=n, seq=loop_cnt, algorithm=algorithm
+                                                                              , base_z_value=base_z_value, short_term=short_term, long_term=long_term
+                                                                              , sell_short_term=sell_short_term, sell_long_term=sell_long_term, buy_amount_multiple=buy_amount_multiple
+                                                                              , target_profit=target_profit, additional_position_threshold=additional_position_threshold
+                                                                              , max_playable_market=max_playable_market, market_shock_base_rate=market_shock_base_rate
+                                                                              , minimum_price=minimum_price, current_period=current_period, market_shock_threshold=market_shock_threshold
+                                                                              , max_value=max_total_amount, min_value=min_total_amount, value=total_amount)
                                                     break
 
 
@@ -696,8 +718,7 @@ class BatchManager():
 
                 if SIMULATION == False:
                     if loop_cnt % 10 == 0:
-                        print("Finished %s Loop: %s seconds elapsed" % (loop_cnt, round(end_tm-start_tm, 2)))
-                        print("current balance num: %s" % (balance_num))
+                        print("%s, Finished %s Loop: %s seconds elapsed, current balance num: %s" % (new_idx, loop_cnt, round(end_tm-start_tm, 2), balance_num))
 
                 loop_cnt += 1
 
