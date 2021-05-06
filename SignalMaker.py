@@ -98,18 +98,24 @@ class SignalMaker:    # 클래스
         if 0:
             short_price_momentum = rolling_short_z['close'][-1]
             long_price_momentum = rolling_long_z['close'][-1]
-            short_price_momentum_prev = rolling_short_z['close'][-2]
-            long_price_momentum_prev = rolling_long_z['close'][-2]
         else:
             short_price_momentum = rolling_short_z_rolling_mean['close'][-1]
             long_price_momentum = rolling_long_z_rolling_mean['close'][-1]
-            short_price_momentum_prev = rolling_short_z_rolling_mean['close'][-2]
-            long_price_momentum_prev = rolling_long_z_rolling_mean['close'][-2]
 
+        # 단기 모멘텀이 최소 수준 이상이면서 단기 모멘텅이 장기 모멘텀보다 큰 경우
+        if short_price_momentum > base and short_price_momentum > long_price_momentum:
 
-        if short_price_momentum > base and short_price_momentum > long_price_momentum \
-                and short_price_momentum > short_price_momentum_prev and long_price_momentum > long_price_momentum_prev:
-            return 'BUY'
+            recent_period = 5
+            if short_price_momentum > rolling_short_z_rolling_mean['close'][-recent_period:].mean() and long_price_momentum > rolling_long_z_rolling_mean['close'][-recent_period:].mean():
+
+                # 꼭지에 걸리지 않기 위해 최근 단기 급등하지 않은 경우
+                rate_threshold = 0.095
+                if max(series['high'][-recent_period:]) / min(series['low'][-recent_period:]) - 1.0 < rate_threshold:
+                    return 'BUY'
+                else:
+                    return False
+            else:
+                return False
         else:
             return False
 

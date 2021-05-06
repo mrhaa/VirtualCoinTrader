@@ -378,17 +378,26 @@ class BatchManager():
 
         ############################################################################
 
+        start_no = 0
         max_no = 0
         if SIMULATION == True:
             max_no = db.max_no()
 
+            # For Test
+            if 0:
+                start_no = 2
+                max_no = 3
 
         except_market_list = []
         recently_sold_list = {}
-        for n in range(max_no + 1):
+        for n in range(start_no, max_no + 1):
 
             if SIMULATION == True:
                 loop_num = db.max_seq(no=n)
+
+                # For Test
+                if 0:
+                    loop_num = 5
 
             loop_cnt = 0
             while loop_cnt <= loop_num:
@@ -469,7 +478,8 @@ class BatchManager():
                                             price_lag = 5
                                             surge_rate_limit = 0.10
 
-                                            surge_rate = long_series['close'][-1] / min(long_series['close'][-price_lag:]) - 1.0
+                                            #surge_rate = long_series['close'][-1] / min(long_series['close'][-price_lag:]) - 1.0
+                                            surge_rate = max(long_series['high'][-price_lag:]) / min(long_series['low'][-price_lag:]) - 1.0
                                             if surge_rate < surge_rate_limit:
                                                 print("%s은 최근 매도 리스트에서 제외(PRICE, %s pro)." % (market, round(surge_rate*100, 2)))
                                                 recently_sold_list.pop(market)
@@ -607,7 +617,8 @@ class BatchManager():
                                                             signal = sm.get_momentum_z_buy_signal(series=long_series, series_num=long_series_num
                                                                                                   , short_term=sell_short_term, long_term=sell_long_term
                                                                                                   , base=base_z_value)
-
+                                                        if 1:
+                                                            signal = 'Sell'
                                                         # 골든 크로스 해지, 정배열이 없어지면 모멘텀이 사라졌다고 판단
                                                         if signal != 'BUY':
                                                             signal = 'SELL'
@@ -663,7 +674,7 @@ class BatchManager():
                                                 break
 
                                             if SIMULATION == True and idx_mrk == markets_num-1:
-                                                print("-----------------------My Balance Status (time: %s, loop_cnt: %s, balance_num: %s)----------------------"
+                                                print("--------------------My Balance Status (time: %s, loop_cnt: %s, balance_num: %s)-------------------"
                                                       % (new_idx, loop_cnt, balance_num))
                                                 cash_amount = 0.0
                                                 asset_amount = 0.0
@@ -687,7 +698,7 @@ class BatchManager():
                                                 if loop_cnt == 0:
                                                     initial_total_amount = total_amount
 
-                                                print("-----------------------Total Amount: %s (Cash: %s, Asset: %s) -------------------------"
+                                                print("--------------------Total Amount: %s (Cash: %s, Asset: %s) ----------------------"
                                                       % (format(round(total_amount), ','), format(round(cash_amount), ','), format(round(asset_amount), ',')))
 
                                                 if loop_cnt == loop_num:

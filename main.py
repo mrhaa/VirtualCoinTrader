@@ -38,15 +38,15 @@ if __name__ == '__main__':
 
         PARAMETERS = {'BM': {}, 'DM': {}, 'SM': {}, 'TM': {}, 'ETC': {}}
         PARAMETERS['BM'] = {'max_balance_num': 200}
-        PARAMETERS['DM'] = {'count': 100}
-        PARAMETERS['SM'] = {'algorithm': 'z_value', 'base_z_value': 0.0, 'short_term': 10, 'long_term': 20, 'sell_short_term': 7, 'sell_long_term': 15}
-        PARAMETERS['TM'] = {'buy_amount_multiple': 10, 'target_profit': 0.025, 'additional_position_threshold': -0.145}
-        PARAMETERS['ETC'] = {'max_playable_market': 40, 'market_shock_base_rate': -0.02, 'minimum_price': 500.0, 'current_period': 5, 'market_shock_threshold': 0.2}
+        PARAMETERS['DM'] = {'count': 50}
+        PARAMETERS['SM'] = {'algorithm': 'z_value', 'base_z_value': 0.05, 'short_term': 10, 'long_term': 20, 'sell_short_term': 7, 'sell_long_term': 15}
+        PARAMETERS['TM'] = {'buy_amount_multiple': 15, 'target_profit': 0.035, 'additional_position_threshold': -0.145}
+        PARAMETERS['ETC'] = {'max_playable_market': 100, 'minimum_price': 500.0, 'market_shock_base_rate': -0.02, 'current_period': 5, 'market_shock_threshold': 0.3}
 
         batch.loop_procedures(SIMULATION=SIMULATION, READ_BALANCE=READ_BALANCE, READ_MARKET=READ_MARKET, READ_DATA=READ_DATA, ANALYZE_DATA=ANALYZE_DATA, TRADE_COIN=TRADE_COIN
                               , EMPTY_ALL_POSITION=EMPTY_ALL_POSITION, CALL_TERM_APPLY=CALL_TERM_APPLY, SELL_SIGNAL=SELL_SIGNAL, RE_BID_TYPE=RE_BID_TYPE
                               , PARAMETERS=PARAMETERS
-                              )#, TEST_MARKET='KRW-ADA')
+                              )#, TEST_MARKET='KRW-BSV')
 
     if 0:
         # 프로시저 작업 활성화 단계 설정(전 단계가 True인 경우 다음 단계에가 활성화될 수 있음)
